@@ -1,0 +1,7 @@
+*~
+*.swp
+*.swo
+*.html
+log
+tmp
+node_modules
