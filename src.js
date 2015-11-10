@@ -2,21 +2,6 @@ import _ from 'lodash';
 import Kefir from 'kefir';
 import Immutable from 'immutable';
 
-// TODO: remove
-import Bacon from 'baconjs';
-
-function storage(constructor){
-  constructor.prototype.setAttrs = function(key, value){
-    if(!this._attrs)this._attrs = {};
-    this._attrs[key] = value;
-  };
-
-  constructor.prototype.getAttrs = function(key){
-    return this._attrs && this._attrs[key];
-  };
-}
-
-@storage
 class AbstractMultiField{
   constructor(fields, name){
     this.key = name;
@@ -37,12 +22,12 @@ class AbstractMultiField{
   }
 
   field(path){
-    return _.inject(path.split('.'), function(o, p){return o && o.fields[p]}, this);
+    return _.inject(path.split('/').filter(x => x != ''), function(o, p){return o && o.fields[p]}, this);
   }
 
   get path(){
     if(!this.parent) return '';
-    return `${this.parent.path}.${this.key}`;
+    return `${this.parent.path}/${this.key}`;
   }
 
   get root(){
@@ -57,19 +42,45 @@ class AbstractMultiField{
   }
 
   combineStates(){
-    let fields = this.fields;
-    let field = this;
-    let res = _.chain(fields).map((value, key) => {
-        return [key, value.state]
-      }).object().value();
+    const commands = Kefir.pool();
+    const fields = this.fields;
+    const defaultState = Immutable.Map({
+      canSubmit: true,
+      hasBeenModified: false,
+      isLoading: false,
+    });
 
-    return Bacon.combineTemplate(res)
-      .map(state => {
-        let canSubmit = _.all(_.map(state, subState => subState.canSubmit));
-        state.canSubmit = canSubmit;
-        state.hasBeenModified = field.hasBeenModified(state);
-        return state;
-      });
+    const mergeChildrenState = (field, state) => {
+      return (parentState) => {
+        const newParentState = parentState.set(field.key, state);
+        const newParentStateJS = newParentState.toJS();
+        // TODO: very dangerous!!
+        const subStates = _.chain(newParentStateJS).filter( subState => _.isObject(subState) && 'canSubmit' in subState ).value();
+        const canSubmit = _.all(_.pluck(subStates, 'canSubmit'));
+        const isLoading = _.some(_.pluck(subStates, 'isLoading'));
+        const hasBeenModified = _.some(_.pluck(subStates, 'hasBeenModified'));
+        return newParentState.merge({ 
+          canSubmit: canSubmit, 
+          hasBeenModified: hasBeenModified,
+          isLoading: isLoading 
+        });
+      }
+    }
+
+    _.each(fields, field => {
+      commands.plug(field.state.map( state => mergeChildrenState(field, state)));
+    });
+
+    if(this.markStream){
+      const markCommand = (value) => {
+        return (state) => {
+          return state.set('mark', value);
+        }
+      }
+      commands.plug(this.markStream.map(v => markCommand(v)));
+    }
+
+    return commands.scan( (state, command) => command(state), defaultState);
   }
 
   initState(){
@@ -85,15 +96,19 @@ export class Formo extends AbstractMultiField{
     super(fields);
     this.propagateParent();
     this.document = document;
-    this.submitBus = new Bacon.Bus();
-    this.cancelBus = new Bacon.Bus();
+
+    this.markStream = Kefir.pool();
     this.initState();
-    this.submitted = this.state.sampledBy(this.submitBus);
-    this.cancelled = this.state.sampledBy(this.cancelBus, (state, cancelOptions) => {
-        state.cancelOptions = cancelOptions;
-        return state;
-      }
-    );
+    
+    this.submitStream = Kefir.pool();
+    this.submitted = this.state.sampledBy(this.submitStream, (state, options) => {
+      return state.set('submitOptions', options);
+    });
+
+    this.cancelStream = Kefir.pool();
+    this.cancelled = this.state.sampledBy(this.cancelStream, (state, options) => {
+      return state.set('cancelOptions', options);
+    });
   }
 
   propagateParent(){
@@ -107,26 +122,29 @@ export class Formo extends AbstractMultiField{
     propagate(this);
   }
 
-  submit(){
-    this.submitBus.push(true);
+  submit(options){
+    this.submitStream.plug(Kefir.constant(Immutable.fromJS(options)));
+  }
+
+  cancel(options){
+    this.cancelStream.plug(Kefir.constant(Immutable.fromJS(options)));
+  }
+
+  mark(value){
+    this.markStream.plug(Kefir.constant(value));
   }
 
   getDocumentValue(path){
     if(!this.document) return;
-    return _.inject(path.split('.').filter(x => x !== ''), function(d, p){return d && d[p]}, this.document);
+    return _.inject(path.split('/').filter(x => x !== ''), function(d, p){return d && d[p]}, this.document);
   }
-
-  cancel(options){
-    this.cancelBus.push(options);
-  }
-
 
   toDocument(state){
     let res = {};
     _.each(state, (subState, name) => {
       if(_.isObject(subState)){
         // TODO: use fieldPath to get field
-        if('value' in subState) res[name] = subState.field.castedValue(subState.value);
+        if(_.isObject(subState) && 'value' in subState) res[name] = subState.field.castedValue(subState.value);
         else res[name] = this.toDocument(subState);
       }
     }); 
@@ -140,7 +158,6 @@ export class MultiField extends AbstractMultiField{
   }
 }
 
-@storage
 export class Field{
   constructor(name, schema={}){
     this.schema = schema;
@@ -152,6 +169,7 @@ export class Field{
 
     const defaultState = Immutable.Map({
         value: defaultValue
+      , path: this.path
       , error: this.checkError(defaultValue)
       , canSubmit: !this.checkError(defaultValue)
       , isLoading: 0
@@ -300,7 +318,7 @@ export class Field{
   }
 
   get path(){
-    return `${this.parent.path}.${this.key}`;
+    return `${this.parent.path}/${this.key}`;
   }
 
   get root(){
