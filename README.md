@@ -23,6 +23,66 @@ I was working on a reactive site and had to craft htlm forms. Because it was ver
 
 * it can submit field's value to a remote validation
 
+### How to install formo
+
+As usual: `$ npm install formo`
+
+
+### How to use
+
+A `Formo` object is mainly a tree made of reactive `Fields` associated with their own schema validation. We can observe field states and publish values to them.
+
+#### Let's define our first schema:
+
+```
+import {Field, MultiField, Formo} from 'formo';
+
+const formo = new Formo([
+  new MultiField('price', {
+    new Field('amount', {
+      label: 'Amount',
+      type: 'number'
+    }),
+    new Field('currency', {
+      label: 'Currency',
+      domainValue: ['EUR', 'USD', 'GBP']
+    })
+  })
+])
+```
+
+We would like to define an html element to render prices (it will be made of to fields: `amount` and `currency`):
+
+```
+const price = formo.field('price');
+```
+
+We can observe this field:
+
+```
+price.onValue( state => {
+  const priceState = state.toJS();
+  console.log(priceState.value);
+})
+```
+
+Let's set multipe prices:
+
+```
+price.setValue(42);
+price.setValue(42.5);
+price.setValue(43);
+```
+
+Or event better, `formo` use [Kefir](https://rpominov.github.io/kefir), so we can do:
+
+```
+import Kefir from 'kefir';
+price.newValueStream.plug(Kefir.sequentially(10, [42, 42.5, 43]));
+```
+
+Console we will display: 42 42.5 43
+
 
 
 That's all folks ....
