@@ -75,7 +75,7 @@ import Kefir from 'kefir';
 price.newValueStream.plug(Kefir.sequentially(10, [42, 42.5, 43]));
 ```
 
-Console we will display: 40 42 42.5 43
+Will output: `40 42 42.5 43`
 
 Not very useful yet, so continue, try to read the API ...
 
