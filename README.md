@@ -101,7 +101,37 @@ A field is defined by a `schema` and a `name`:
     * `error`: error message to return if checker returns `false`
 
 
-A field exports 4 `Kefir` streams. 3 of them are used to publish values or send commands, the last one `state` is to observe field's states.  
+A field exports 3 `Kefir` streams as inputs:
+
+* `newValueStream`: used to publish new values
+* `resetStream`: used to reset field's state
+* `activateStream`: used to active/desactive a field
+
+We can call 3 asynchronous methods instead of using stream:
+
+* Field#setValue(value): push a new value to the field
+* Field#reset(data): reset the field, data will be accessible as `resetOptions` in resulting `state`
+* Field#activate(boolean): will set up `isActivate` attribute in the state
+
+
+`Field.state` is a Kefir property, so to get it's `state` we have to observe it with `onValue`:
+
+```
+  const price = formo.field('price'):
+  price.onValue( price => {
+    this.setState({price: price});
+  });
+```
+* `Field.onValue(function(fieldState))` : `fieldState` is an (Immutable](http://facebook.github.io/immutable-js) Map object with those keys:
+ * `value`: field value, even if validation failed, a new state with this value will be published.
+ * `error`: error string if `value` validation failed. Each time a field receive a value and at initialisation, field will check its value (see `schema` above)
+ * `isActivated`: boolean 
+ * `hasBeenModified`: boolean to reflect if field's value changed
+ * `canSubmit`: boolean to indicate if value is checked and no processing is in progress
+ * `isLoading`: boolean to indicate if a request is running (see `valueChecker`)
+
+
+
 
 #### MultiField
 
