@@ -92,13 +92,13 @@ A field is defined by a `schema` and a `name`:
 * `schema`: JS object:
   * `label`: used by client's library to display element name, it's a free attribute ot used yet by `formo`.
   * `type`: following types are managed ['text', 'number', 'interger', 'boolean'].
+  * `required`: field is required
   * `pattern`: regext that `field.value` should match, if present will override `type`.
   * `defaultValue`: default value at initialisation and after a `reset` of the field.
   * `domainValue`: `Array` containing all possible values or `function` that take a value and returns `true` if value belongs to domain, if present will override `type` and `pattern`.
   * `valueChecker`: Object, if present, will override `type`, `pattern` and `domainValue`
     * `checker`: `function` that returns a `Promise` that should be resolved as `true` if value is correct
     * `debounce`: will call `checker` only milliseconds after last value received
-    * `error`: error message to return if checker returns `false`
 
 
 A field exports 3 `Kefir` streams as inputs:
@@ -114,15 +114,16 @@ We can call 3 asynchronous methods instead of using stream:
 * Field#activate(boolean): will set up `isActivate` attribute in the state
 
 
-`Field.state` is a Kefir property, so to get it's `state` we have to observe it with `onValue`:
+* `Field.state` is a Kefir property, so to get it's value we have to observe it with `Field.state.onValue`:
 
 ```
   const price = formo.field('price'):
-  price.onValue( price => {
+  price.state.onValue( price => {
     this.setState({price: price});
   });
 ```
-* `Field.onValue(function(fieldState))` : `fieldState` is an (Immutable](http://facebook.github.io/immutable-js) Map object with those keys:
+
+* Field.onValue(function(fieldState))`: `fieldState` is an (Immutable](http://facebook.github.io/immutable-js) Map object with those keys:
  * `value`: field value, even if validation failed, a new state with this value will be published.
  * `error`: error string if `value` validation failed. Each time a field receive a value and at initialisation, field will check its value (see `schema` above)
  * `isActivated`: boolean 
@@ -131,7 +132,89 @@ We can call 3 asynchronous methods instead of using stream:
  * `isLoading`: boolean to indicate if a request is running (see `valueChecker`)
 
 
+Let's play:
 
+```
+function priceChecker(value){
+  return new Promise( (resolve, reject) => {
+    setTimeout( () => resolve({checked: value <= 42, error: 'server error'}), 20);
+  });
+}
+
+const formo = new Formo([
+  new Field('price', {
+    defaultValue: 42,
+    required: true,
+    valueChecker:{
+      checker: priceChecker,
+      debounce: 20;
+    }
+  })
+])
+
+const price = formo.field('price');
+price.state.onValue( state => {
+  console.log(state.toJS())
+});
+
+price.newValueStream.plug(Kefir.sequentially(100, [undefined, 'toto', 40]));
+```
+
+We use `Kefir.sequentially` instead of `price.setValue` to be more realistic: remember that we will do server side value checking with a `debounce` value.
+
+Will output:
+
+```
+// 1
+{ value: 42,
+  canSubmit: true,
+  hasBeenModified: false }
+// 2
+{ value: undefined,
+  canSubmit: false,
+  hasBeenModified: true }
+// 3
+{ value: 'toto',
+  canSubmit: false,
+  hasBeenModified: true }
+// 4
+{ value: 'toto',
+  canSubmit: false,
+  isLoading: 1,
+  hasBeenModified: true }
+// 5
+{ value: 'toto',
+  error: 'server error',
+  canSubmit: false,
+  hasBeenModified: true }
+//6
+{ value: 40,
+  canSubmit: false,
+  hasBeenModified: true }
+// 7
+{ value: 40,
+  canSubmit: false,
+  isLoading: 1,
+  hasBeenModified: true }
+// 8
+{ value: 40,
+  path: '/price',
+  error: undefined,
+  canSubmit: true,
+  isLoading: 0,
+  hasBeenModified: true }
+```
+
+Output explainations:
+
+1.  default value, `valueChecker` is not called for default value => we can submit
+2.  `undefined` value is rejected because field is required
+3.  `'toto'` value is new yet checked server side, so we cannot submit before receiving answer from server
+4.  server side checking was requested
+5.  server refuse value
+6.
+7.
+8.  same workflow, but now value is accepted by server
 
 #### MultiField
 
