@@ -129,7 +129,7 @@ We can call 3 asynchronous methods instead of using stream:
  * `isActivated`: boolean 
  * `hasBeenModified`: boolean to reflect if field's value changed
  * `canSubmit`: boolean to indicate if value is checked and no processing is in progress
- * `isLoading`: boolean to indicate if a request is running (see `valueChecker`)
+ * `isLoading`: counter of running requests to check values (see `valueChecker`)
 
 
 Let's play:
@@ -198,10 +198,7 @@ Will output:
   hasBeenModified: true }
 // 8
 { value: 40,
-  path: '/price',
-  error: undefined,
   canSubmit: true,
-  isLoading: 0,
   hasBeenModified: true }
 ```
 
