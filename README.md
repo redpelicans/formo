@@ -262,12 +262,39 @@ price.state.onValue( state => {
 
 Will output 54: default values are overwritten by actual values.
 
-We can `submit`, `cancel`, `reset`, `activate` a `formo` object.
+* `Formo#field(path)`: TODO
+
+We can `submit`, `cancel`, `reset`, `activate` a `formo` object thanks to those methods and associated streams
 
 * `Formo#reset()`: reset all fields, will call `Field#reset()` on all fields
 * `Formo#activate(boolean)`: will call `Field#activate(boolean) on all fields
-* `Formo#submit()`: will push a value inside the stream `Formo#submitted` so that observers to the latter will be able to react 
-.......
+* `Formo#submit()` | `Formo#submitStream`: used to uncouple component who emits `submit` event from the one who will process it. Latter has to observe the stream `Formo#submitted` (see below)
+* `Formo#cancel()` | `Formo#cancelStream`: same idea as for `submit`
+
+`reset()` and `activate()` will update field's states, so that `Formo#state.onValue(state)` will be called for each of them:
+
+```
+const formo = new Formo([new Field('price', {defaultValue: 42})});
+formo.state.onValue( state => {
+  console.log(state.getIn(['price', 'value']));
+});
+formo.field('price').setValue(44);
+formo.reset();
+```
+
+Will output : 42, 44, 42
+
+`Formo#cancel()` and `Formo#submit()` will not change field's states, we have to observe respectively `Formo#cancelled` and `Formo#submitted` streams to react:
+
+```
+const formo = new Formo();
+formo.submitted.onValue( state => {
+  console.log(state);
+});
+formo.submit();
+```
+
+Will output: `Map { "canSubmit": true, "hasBeenModified": false, "isLoading": false}`
 
 
 #### MultiField
