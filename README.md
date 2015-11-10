@@ -1,4 +1,4 @@
-## formo [![Build Status](https://travis-ci.org/redpelicans/formo.png)](https://travis-ci.org/redpelicans/formo)
+## Formo [![Build Status](https://travis-ci.org/redpelicans/formo.png)](https://travis-ci.org/redpelicans/formo)
 
 
 A reactive helper and validator library for html forms
@@ -15,7 +15,7 @@ I was working on a reactive app and had to craft htlm forms. Because it was very
 
 ### What is formo
 
-* it's a fully reactive library, built on top of [Kefir](https://rpominov.github.io/kefir). it can be managed by pluging into streams or by sending imperative calls. Should be enought flexible to express complex form's behaviour.
+* it's a fully reactive library, built on top of [Kefir](https://rpominov.github.io/kefir). it can be managed by pluging into streams or by sending imperative calls. it should be enought flexible to express complex form's behaviour.
 
 * it uses schema validation (type, pattern, doman value, required field), but keep validation and schema management isolated from rendering
 
@@ -26,7 +26,6 @@ I was working on a reactive app and had to craft htlm forms. Because it was very
 ### How to install formo
 
 As usual: `$ npm install formo`
-
 
 ### How to use
 
@@ -46,13 +45,13 @@ const formo = new Formo([
 ])
 ```
 
-We would like to define an html element to render prices:
+We would like to manipulate prices:
 
 ```
 const price = formo.field('price');
 ```
 
-We can observe this field:
+We can now observe prices and render them:
 
 ```
 price.onValue( state => {
@@ -69,7 +68,7 @@ price.setValue(42.5);
 price.setValue(43);
 ```
 
-Or event better, `formo` use [Kefir](https://rpominov.github.io/kefir), so we can do:
+Even better, `formo` use [Kefir](https://rpominov.github.io/kefir), so we can do:
 
 ```
 import Kefir from 'kefir';
@@ -78,7 +77,7 @@ price.newValueStream.plug(Kefir.sequentially(10, [42, 42.5, 43]));
 
 Console we will display: 40 42 42.5 43
 
-Not very useful yet, so continue ...
+Not very useful yet, so continue, try to read the API ...
 
 ### API
 
