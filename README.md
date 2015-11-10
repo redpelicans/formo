@@ -19,9 +19,9 @@ I was working on a reactive site and had to craft htlm forms. Because it was ver
 
 * it uses schema validation (type, pattern, doman value, required field), but keep validation and schema management isolated from rendering
 
-* it offers to define multi levels schema and to bind html form elements to any level of the schema* 
+* it offers to define multi levels schema and to bind html form elements to any level of the schema 
 
-* it can submit field's value to a remote validation
+* it can submit field's values to remote validations
 
 ### How to install formo
 
@@ -113,8 +113,9 @@ We can call 3 asynchronous methods instead of using stream:
 * `Field#reset(data)`: reset the field, data will be accessible as `resetOptions` in resulting `state`
 * `Field#activate(boolean)`: will set up `isActivate` attribute in the state
 
+A field has no value, it's a reactive structure, if you observe it, you can get one!
 
-* `Field.state` is a Kefir property, so to get it's value we have to observe it with `Field.state.onValue`:
+* `Field.state` is a Kefir property, so to get its value we need to observe it with `Field.state.onValue`:
 
 ```
   const price = formo.field('price'):
@@ -216,7 +217,7 @@ Output explanations:
 
 #### Formo
 
-A `formo` object is a tree of `Fields`. To create one we need to give it a fields tree called a schema:
+A `formo` object is a tree made of `Fields`. To create one, we need to give it fields organized as a tree:
 
 ```
 const formo = new Formo([
@@ -234,7 +235,6 @@ const formo = new Formo([
 ```
 
 A `formo` object will be used to generate a javascript object but also to update an existing one:
-
 
 ```
 const formo = new Formo([
@@ -259,12 +259,23 @@ price.state.onValue( state => {
 });
 
 ```
-
 Will output 54: default values are overwritten by actual values.
 
-* `Formo#field(path)`: TODO
+* `Formo#field(path)`: One fields are created as a `Formo` object, this method helps to get them. It uses a `path` and not just a name, because we are playing with a tree (see MultiField).
 
-We can `submit`, `cancel`, `reset`, `activate` a `formo` object thanks to those methods and associated streams
+```
+const formo = new Formo([
+  new MultiField('bill', [
+    new Field('price', {type: 'number'}),
+    new Field('currency', {defaultValue: 'EUR',domainValue: ['EUR', 'USD', 'GBP'}
+    }),
+  ])
+]
+
+const field = formo.field('/bill/currency');
+```
+
+We can `submit`, `cancel`, `reset`, `activate` a `formo` object thanks to those methods and associated streams:
 
 * `Formo#reset()`: reset all fields, will call `Field#reset()` on all fields
 * `Formo#activate(boolean)`: will call `Field#activate(boolean) on all fields
@@ -296,9 +307,75 @@ formo.submit();
 
 Will output: `Map { "canSubmit": true, "hasBeenModified": false, "isLoading": false}`
 
+After a `submit` event it's very common to need the aquivalent of the `Formo` object as a plain old javascript object, `Formo#toDocument()` wil help:
+
+* `Formo#toDocument(state)`: convert a `Formo` object state to a javasctip object:
+
+```
+const formo = new Formo([new MultiField('bike', [new Field('price')])]);
+const [bike, price] = [formo.field('bike'), formo.field('/bike/price')];
+
+formo.submitted.onValue( state => {
+  console.log(state);
+});
+price.setValue(142)
+formo.submit();
+```
+Will output: `{ bike: { price: 142 } }`
+
+
+A `Formo` object is an observable. Returned `state` is an agregation of all children's states. In a `Formo` tree you can observe at any levels :
+
+```
+const formo = new Formo([new MultiField('bike', [new Field('price')])]);
+const [bike, price] = [formo.field('bike'), formo.field('/bike/price')];
+
+formo.state.onValue(state => console.log(state.toJS().bike.price.value));
+bike.state.onValue(state => console.log(state.toJS().price.value));
+price.state.onValue(state => console.log(state.toJS().value));
+
+price.setValue(142);
+```
+
+Will output: `142 142 142`
+
 
 #### MultiField
 
+A `Multifield` is made of `Multifields` or `Fields` in a `Formo` tree. If you think world is not flat, use it!
+
+A `MultiField` has no value, but you can `reset`, `activate` them.
+
+A `MultiField` is an observable, like a `Formo` object (see above).
+
+* `MultiField#state.onValue(fieldState)` gives you an agregation of children's states. 
+
+```
+const formo = new Formo([new MultiField('bike', [new Field('price')])]);
+const [bike, price] = [formo.field('bike'), formo.field('/bike/price')];
+
+bike.state.onValue(state => console.log(state.toJS()));
+price.setValue(142);
+```
+
+Will output:
+
+```
+{ canSubmit: true,
+  hasBeenModified: false,
+  isLoading: false,
+  price: 
+   { value: undefined,
+     canSubmit: true,
+     hasBeenModified: false } }
+{ canSubmit: true,
+  hasBeenModified: true,
+  isLoading: false,
+  price: 
+   { value: 142,
+     canSubmit: true,
+     hasBeenModified: true } }
+```
 
 
 That's all folks ....
