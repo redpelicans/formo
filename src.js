@@ -53,12 +53,10 @@ class AbstractMultiField{
     const mergeChildrenState = (field, state) => {
       return (parentState) => {
         const newParentState = parentState.set(field.key, state);
-        const newParentStateJS = newParentState.toJS();
-        // TODO: very dangerous!!
-        const subStates = _.chain(newParentStateJS).filter( subState => _.isObject(subState) && 'canSubmit' in subState ).value();
-        const canSubmit = _.all(_.pluck(subStates, 'canSubmit'));
-        const isLoading = _.some(_.pluck(subStates, 'isLoading'));
-        const hasBeenModified = _.some(_.pluck(subStates, 'hasBeenModified'));
+        const subStates = newParentState.filter( subState =>  Immutable.Map.isMap(subState) && subState.has('canSubmit')).toList();
+        const canSubmit = _.all(subStates.map( x => x.get('canSubmit') ).toJS());
+        const isLoading = _.some(subStates.map( x => x.get('isLoading')).toJS());
+        const hasBeenModified = _.some(subStates.map( x => x.get('hasBeenModified')).toJS());
         return newParentState.merge({ 
           canSubmit: canSubmit, 
           hasBeenModified: hasBeenModified,
@@ -141,10 +139,9 @@ export class Formo extends AbstractMultiField{
 
   toDocument(state){
     let res = {};
-    _.each(state, (subState, name) => {
-      if(_.isObject(subState)){
-        // TODO: use fieldPath to get field
-        if(_.isObject(subState) && 'value' in subState) res[name] = subState.field.castedValue(subState.value);
+    state.mapEntries(([name, subState]) => {
+      if(Immutable.Map.isMap(subState)){
+        if(subState.has('value')) res[name] = this.field(subState.get('path')).castedValue(subState.get('value'));
         else res[name] = this.toDocument(subState);
       }
     }); 

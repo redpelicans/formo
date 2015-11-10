@@ -4,6 +4,8 @@ Object.defineProperty(exports, '__esModule', {
   value: true
 });
 
+var _slicedToArray = (function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i['return']) _i['return'](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError('Invalid attempt to destructure non-iterable instance'); } }; })();
+
 var _get = function get(_x2, _x3, _x4) { var _again = true; _function: while (_again) { var object = _x2, property = _x3, receiver = _x4; _again = false; if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x2 = parent; _x3 = property; _x4 = receiver; _again = true; desc = parent = undefined; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -55,7 +57,9 @@ var AbstractMultiField = (function () {
   }, {
     key: 'field',
     value: function field(path) {
-      return _lodash2['default'].inject(path.split('/'), function (o, p) {
+      return _lodash2['default'].inject(path.split('/').filter(function (x) {
+        return x != '';
+      }), function (o, p) {
         return o && o.fields[p];
       }, this);
     }
@@ -103,14 +107,18 @@ var AbstractMultiField = (function () {
       var mergeChildrenState = function mergeChildrenState(field, state) {
         return function (parentState) {
           var newParentState = parentState.set(field.key, state);
-          var newParentStateJS = newParentState.toJS();
-          // TODO: very dangerous!!
-          var subStates = _lodash2['default'].chain(newParentStateJS).filter(function (subState) {
-            return _lodash2['default'].isObject(subState) && 'canSubmit' in subState;
-          }).value();
-          var canSubmit = _lodash2['default'].all(_lodash2['default'].pluck(subStates, 'canSubmit'));
-          var isLoading = _lodash2['default'].some(_lodash2['default'].pluck(subStates, 'isLoading'));
-          var hasBeenModified = _lodash2['default'].some(_lodash2['default'].pluck(subStates, 'hasBeenModified'));
+          var subStates = newParentState.filter(function (subState) {
+            return _immutable2['default'].Map.isMap(subState) && subState.has('canSubmit');
+          }).toList();
+          var canSubmit = _lodash2['default'].all(subStates.map(function (x) {
+            return x.get('canSubmit');
+          }).toJS());
+          var isLoading = _lodash2['default'].some(subStates.map(function (x) {
+            return x.get('isLoading');
+          }).toJS());
+          var hasBeenModified = _lodash2['default'].some(subStates.map(function (x) {
+            return x.get('hasBeenModified');
+          }).toJS());
           return newParentState.merge({
             canSubmit: canSubmit,
             hasBeenModified: hasBeenModified,
@@ -234,10 +242,14 @@ var Formo = (function (_AbstractMultiField) {
       var _this3 = this;
 
       var res = {};
-      _lodash2['default'].each(state, function (subState, name) {
-        if (_lodash2['default'].isObject(subState)) {
-          // TODO: use fieldPath to get field
-          if (_lodash2['default'].isObject(subState) && 'value' in subState) res[name] = subState.field.castedValue(subState.value);else res[name] = _this3.toDocument(subState);
+      state.mapEntries(function (_ref) {
+        var _ref2 = _slicedToArray(_ref, 2);
+
+        var name = _ref2[0];
+        var subState = _ref2[1];
+
+        if (_immutable2['default'].Map.isMap(subState)) {
+          if (subState.has('value')) res[name] = _this3.field(subState.get('path')).castedValue(subState.get('value'));else res[name] = _this3.toDocument(subState);
         }
       });
       return res;
