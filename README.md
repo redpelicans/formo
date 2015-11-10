@@ -84,17 +84,21 @@ Not very useful yet, so continu ...
 
 #### Field
 
-A field is defined by a `schema`, it can be binded to a plain javascript object that should be compatible with the previsous schema. 
+A field is defined by a `schema` and a `name`:
 
 `new Field(name, schema)`
 
-* `name`: key to identify the field within a `formo` object. A formo obect is a tree, so `name`should be a key at each tree's level.
+* `name`: key to identify the field within a `formo` object. Later is a tree, so `name` should be a uniq for each tree's levels.
 * `schema`: JS object:
-  * `schema.label`: used be client library to display element name
-  * `schema.type`: following types are managed ['text', 'number', 'interger', 'boolean']
-  * `schema.pattern`: regext that `field.value` should match
-  * `schema.defaultValue`: default value at initialisation and after a `reset` of the field
-  * `schema.domainValue`
+  * `label`: used by client's library to display element name, it's a free attribute ot used yet by `formo`.
+  * `type`: following types are managed ['text', 'number', 'interger', 'boolean'].
+  * `pattern`: regext that `field.value` should match, if present will override `type`.
+  * `defaultValue`: default value at initialisation and after a `reset` of the field.
+  * `domainValue`: `Array` containing all possible values or `function` that take a value and returns `true` if value belongs to domain, if present will override `type` and `pattern`.
+  * `valueChecker`: Object, if present, will override `type`, `pattern` and `domainValue`
+    * `checker`: `function` that returns a `Promise` that should be resolved as `true` if value is correct
+    * `debounce`: will call `checker` only milliseconds after last value received
+    * `error`: error message to return if checker returns `false`
 
 
 A field exports 4 `Kefir` streams. 3 of them are used to publish values or send commands, the last one `state` is to observe field's states.  
