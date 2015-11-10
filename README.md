@@ -78,7 +78,7 @@ price.newValueStream.plug(Kefir.sequentially(10, [42, 42.5, 43]));
 
 Console we will display: 40 42 42.5 43
 
-Not very useful yet, so continu ...
+Not very useful yet, so continue ...
 
 ### API
 
@@ -109,9 +109,9 @@ A field exports 3 `Kefir` streams as inputs:
 
 We can call 3 asynchronous methods instead of using stream:
 
-* Field#setValue(value): push a new value to the field
-* Field#reset(data): reset the field, data will be accessible as `resetOptions` in resulting `state`
-* Field#activate(boolean): will set up `isActivate` attribute in the state
+* `Field#setValue(value)`: push a new value to the field
+* `Field#reset(data)`: reset the field, data will be accessible as `resetOptions` in resulting `state`
+* `Field#activate(boolean)`: will set up `isActivate` attribute in the state
 
 
 * `Field.state` is a Kefir property, so to get it's value we have to observe it with `Field.state.onValue`:
@@ -202,7 +202,7 @@ Will output:
   hasBeenModified: true }
 ```
 
-Output explainations:
+Output explanations:
 
 1.  default value, `valueChecker` is not called for default value => we can submit
 2.  `undefined` value is rejected because field is required
@@ -213,8 +213,65 @@ Output explainations:
 7.
 8.  same workflow, but now value is accepted by server
 
-#### MultiField
 
 #### Formo
+
+A `formo` object is a tree of `Fields`. To create one we need to give it a fields tree called a schema:
+
+```
+const formo = new Formo([
+  new Field('price', {
+    defaultValue: 42,
+    required: true,
+    type: 'number'
+  }),
+  new Field('currency', {
+    defaultValue: 'EUR',
+    required: true,
+    domainValue: ['EUR', 'USD', 'GBP'}
+  })
+])
+```
+
+A `formo` object will be used to generate a javascript object but also to update an existing one:
+
+
+```
+const formo = new Formo([
+  new Field('price', {
+    defaultValue: 42,
+    required: true,
+    type: 'number'
+  }),
+  new Field('currency', {
+    defaultValue: 'EUR',
+    required: true,
+    domainValue: ['EUR', 'USD', 'GBP'}
+  })
+], {
+  price: 54,
+  currency: 'GBP'
+})
+
+const price = formo.field('price');
+price.state.onValue( state => {
+  console.log(state.toJS().value)
+});
+
+```
+
+Will output 54: default values are overwritten by actual values.
+
+We can `submit`, `cancel`, `reset`, `activate` a `formo` object.
+
+* `Formo#reset()`: reset all fields, will call `Field#reset()` on all fields
+* `Formo#activate(boolean)`: will call `Field#activate(boolean) on all fields
+* `Formo#submit()`: will push a value inside the stream `Formo#submitted` so that observers to the latter will be able to react 
+.......
+
+
+#### MultiField
+
+
 
 That's all folks ....
