@@ -9,17 +9,17 @@ I was working on a reactive site and had to craft htlm forms. Because it was ver
 
 ### What is not formo
 
-* it's not a form builder; formo is completely independent from the view framework. But it's first use is with React, so you can find many examples of react elements binding. 
+* it's not a form builder: formo is completely independent of the view layer. But it's first use is wihin a React app, so you can find many examples of react elements binding. 
 
-* it's not a full validation library;  formo use its own validation code, may be in the furure it should be better to use an external lirary
+* it's not a full validation library: formo uses its own validation code, may be in the furure it should be better to use an external lirary
 
 ### What is formo
 
-* it's a fully reactive library, built on top of [Kefir](https://rpominov.github.io/kefir). Can be managed by pluging into streams or by sending imperative calls. Should be enought flexible to express complex form's behaviour.
+* it's a fully reactive library, built on top of [Kefir](https://rpominov.github.io/kefir). it can be managed by pluging into streams or by sending imperative calls. Should be enought flexible to express complex form's behaviour.
 
 * it uses schema validation (type, pattern, doman value, required field), but keep validation and schema management isolated from rendering
 
-* it offers to define multi levels schema and bing form elements to any level of the schema* 
+* it offers to define multi levels schema and to bind html form elements to any level of the schema* 
 
 * it can submit field's value to a remote validation
 
