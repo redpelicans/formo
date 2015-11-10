@@ -5,7 +5,7 @@ A reactive helper and validator library for html forms
 
 ### Why formo, why another form library ?
 
-I was working on a reactive site and had to craft htlm forms. Because it was very difficult to find a library able to correctly cover the event dimension of the problem, I decided to create one. Here is formo ...
+I was working on a reactive app and had to craft htlm forms. Because it was very difficult to find a library able to correctly cover the event dimension of the problem, I decided to create one. Here is formo ...
 
 ### What is not formo
 
