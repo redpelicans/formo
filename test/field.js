@@ -19,24 +19,41 @@ describe('fields', function(){
       const field = new Field('price', { label: 'Price', type: 'text' });
       field.initState();
       field.state.skip(1).onValue( s => {
-        should(s.toJS().value).equal('42');
+        const res = s.toJS();
+        should(res.value).equal('42');
+        should(res.error).be.undefined;
+        should(res.canSubmit).be.true();
+        should(res.isLoading).equal(0);
+        should(res.hasBeenModified).be.true();
         done();
       });
       field.setValue('42');
     });
+
     it('should have a default value', (done) => {
       const field = new Field('price', { label: 'Price', type: 'integer', defaultValue: 43 });
       field.initState();
       field.state.onValue( s => {
-        should(s.toJS().value).equal(43);
+        const res = s.toJS();
+        should(res.value).equal(43);
+        should(res.error).be.undefined;
+        should(res.canSubmit).be.true();
+        should(res.isLoading).equal(0);
+        should(res.hasBeenModified).be.false();
         done();
       });
     });
+
     it('should be reset', (done) => {
       const field = new Field('price', { label: 'Price', type: 'integer', defaultValue: 43 });
       field.initState();
       field.state.skip(2).onValue( s => {
-        should(s.toJS().value).equal(43);
+        const res = s.toJS();
+        should(res.value).equal(43);
+        should(res.error).be.undefined;
+        should(res.canSubmit).be.true();
+        should(res.isLoading).equal(0);
+        should(res.hasBeenModified).be.false();
         done();
       });
       field.setValue(42);
@@ -49,7 +66,12 @@ describe('fields', function(){
       const field = new Field('price', { label: 'Price', type: 'integer' });
       field.initState();
       field.state.skip(1).onValue( s => {
-        should(s.get('error')).be.a.String();
+        const res = s.toJS();
+        should(res.value).equal(42.42);
+        should(res.error).be.a.String();
+        should(res.canSubmit).be.false();
+        should(res.isLoading).equal(0);
+        should(res.hasBeenModified).be.true();
         done();
       });
       field.setValue(42.42);
@@ -59,7 +81,12 @@ describe('fields', function(){
       const field = new Field('price', { label: 'Price', type: 'integer' });
       field.initState();
       field.state.skip(1).onValue( s => {
-        should(s.get('error')).be.undefined();
+        const res = s.toJS();
+        should(res.value).equal(42);
+        should(res.error).be.undefined();
+        should(res.canSubmit).be.true();
+        should(res.isLoading).equal(0);
+        should(res.hasBeenModified).be.true();
         done();
       });
       field.setValue(42);
@@ -70,7 +97,12 @@ describe('fields', function(){
       const field = new Field('price', { label: 'Price', type: 'number' });
       field.initState();
       field.state.skip(1).onValue( s => {
-        should(s.get('error')).be.a.String();
+        const res = s.toJS();
+        should(res.value).equal('camembert');
+        should(res.error).be.a.String();
+        should(res.canSubmit).be.false();
+        should(res.isLoading).equal(0);
+        should(res.hasBeenModified).be.true();
         done();
       });
       field.setValue('camembert');
@@ -80,7 +112,12 @@ describe('fields', function(){
       const field = new Field('price', { label: 'Price', type: 'number' });
       field.initState();
       field.state.skip(1).onValue( s => {
-        should(s.get('error')).be.undefined();
+        const res = s.toJS();
+        should(res.value).equal(42.42);
+        should(res.error).be.undefined();
+        should(res.canSubmit).be.true();
+        should(res.isLoading).equal(0);
+        should(res.hasBeenModified).be.true();
         done();
       });
       field.setValue(42.42);
@@ -90,7 +127,12 @@ describe('fields', function(){
       const field = new Field('price', { label: 'Price', type: 'boolean', defaultValue: 'toto' });
       field.initState();
       field.state.onValue( s => {
-        should(s.get('error')).be.a.String();
+        const res = s.toJS();
+        should(res.value).equal('toto');
+        should(res.error).be.a.String();
+        should(res.canSubmit).be.false();
+        should(res.isLoading).equal(0);
+        should(res.hasBeenModified).be.false();
         done();
       });
     });
@@ -99,7 +141,12 @@ describe('fields', function(){
       const field = new Field('price', { label: 'Price', type: 'boolean', defaultValue:false });
       field.initState();
       field.state.onValue( s => {
-        should(s.get('error')).be.undefined();
+        const res = s.toJS();
+        should(res.value).equal(false);
+        should(res.error).be.undefined();
+        should(res.canSubmit).be.true();
+        should(res.isLoading).equal(0);
+        should(res.hasBeenModified).be.false();
         done();
       });
     });
@@ -108,7 +155,12 @@ describe('fields', function(){
       const field = new Field('price', { label: 'Price', defaultValue: 'toto' });
       field.initState();
       field.state.onValue( s => {
-        should(s.get('error')).be.undefined();
+        const res = s.toJS();
+        should(res.value).equal('toto');
+        should(res.error).be.undefined();
+        should(res.canSubmit).be.true();
+        should(res.isLoading).equal(0);
+        should(res.hasBeenModified).be.false();
         done();
       });
     });
@@ -117,7 +169,12 @@ describe('fields', function(){
       const field = new Field('price', { label: 'Price', pattern: /$titi/, defaultValue:'toto' });
       field.initState();
       field.state.onValue( s => {
-        should(s.get('error')).not.be.undefined();
+        const res = s.toJS();
+        should(res.value).equal('toto');
+        should(res.error).be.a.String();
+        should(res.canSubmit).be.false();
+        should(res.isLoading).equal(0);
+        should(res.hasBeenModified).be.false();
         done();
       });
     });
@@ -127,7 +184,12 @@ describe('fields', function(){
       const field = new Field('price', { label: 'Price', pattern: /[1,2,3]/, defaultValue:'abc' });
       field.initState();
       field.state.onValue( s => {
-        should(s.get('error')).be.a.String();
+        const res = s.toJS();
+        should(res.value).equal('abc');
+        should(res.error).be.a.String();
+        should(res.canSubmit).be.false();
+        should(res.isLoading).equal(0);
+        should(res.hasBeenModified).be.false();
         done();
       });
     });
@@ -136,10 +198,30 @@ describe('fields', function(){
       const field = new Field('price', { label: 'Price', pattern: /[1,2,3]/, defaultValue:'2' });
       field.initState();
       field.state.onValue( s => {
-        should(s.get('error')).be.undefined();
+        const res = s.toJS();
+        should(res.value).equal('2');
+        should(res.error).be.undefined();
+        should(res.canSubmit).be.true();
+        should(res.isLoading).equal(0);
+        should(res.hasBeenModified).be.false();
         done();
       });
     });
+
+    it('should not match an integer pattern', (done) => {
+      const field = new Field('price', { label: 'Price', type:'integer', pattern: /[1,2,3]/, defaultValue:4 });
+      field.initState();
+      field.state.onValue( s => {
+        const res = s.toJS();
+        should(res.value).equal(4);
+        should(res.error).be.a.String();
+        should(res.canSubmit).be.false();
+        should(res.isLoading).equal(0);
+        should(res.hasBeenModified).be.false();
+        done();
+      });
+    });
+
   });
 
   describe('hasBeenModified', () => {
@@ -261,6 +343,7 @@ describe('fields', function(){
       field.setValue(42);
     });
 
+
     it('should be loading', (done) => {
       const field = new Field('price', { 
         label: 'Price', 
@@ -276,6 +359,85 @@ describe('fields', function(){
         should(res.isLoading).equal(1);
         done();
       });
+      field.setValue(42);
+    });
+
+  });
+
+  describe('domain value', () => {
+    it('should match domain value', (done) => {
+      const field = new Field('price', { 
+        label: 'Price', 
+        domainValue: [1, 42],
+      });
+
+      field.initState();
+      field.state.skip(1).onValue( s => {
+        const res = s.toJS();
+        should(res.value).equal(42);
+        should(res.error).be.undefined();
+        should(res.canSubmit).be.true();
+        should(res.isLoading).equal(0);
+        should(res.hasBeenModified).be.true();
+        done();
+      });
+      field.setValue(42);
+    });
+
+
+    it('should not match domain value', (done) => {
+      const field = new Field('price', { 
+        label: 'Price', 
+        defaultValue: 1,
+        domainValue: [1, 2],
+      });
+
+      field.initState();
+      field.state.skip(1).onValue( s => {
+        const res = s.toJS();
+        should(res.value).equal(42);
+        should(res.error).be.a.String();
+        should(res.canSubmit).be.false();
+        should(res.isLoading).equal(0);
+        should(res.hasBeenModified).be.true();
+        done();
+      });
+      field.setValue(42);
+    });
+
+    it('should not match domain value', (done) => {
+      const field = new Field('price', { 
+        label: 'Price', 
+        domainValue: (v) => {return v === 'toto'},
+      });
+
+      field.initState();
+      field.state.skip(1).onValue( s => {
+        const res = s.toJS();
+        should(res.value).equal('titi');
+        should(res.error).be.a.String();
+        should(res.canSubmit).be.false();
+        should(res.isLoading).equal(0);
+        should(res.hasBeenModified).be.true();
+        done();
+      });
+      field.setValue('titi');
+    });
+
+
+  });
+
+  describe('dynamic domain value', () => {
+    it('should no match domain value', (done) => {
+      const field = new Field('price');
+      field.initState();
+      field.state.skip(1).onValue( s => {
+        const res = s.toJS();
+        should(res.value).equal(42);
+        should(res.error).be.a.String();
+        done();
+      });
+      field.schema.domainValue = [4];
       field.setValue(42);
     });
 

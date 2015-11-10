@@ -142,7 +142,7 @@ export class MultiField extends AbstractMultiField{
 
 @storage
 export class Field{
-  constructor(name, schema){
+  constructor(name, schema={}){
     this.schema = schema;
     this.key = name;
   }
@@ -152,7 +152,6 @@ export class Field{
 
     const defaultState = Immutable.Map({
         value: defaultValue
-      , domainValues: this.schema.domainValues
       , error: this.checkError(defaultValue)
       , canSubmit: !this.checkError(defaultValue)
       , isLoading: 0
@@ -161,8 +160,15 @@ export class Field{
 
     const checkedValueCommand = (data) => {
       return state => {
-        // TODO: value may have changed!!
         const isLoading = state.get('isLoading') - 1;
+        if(state.get('value') !== data.value){
+          // value has changed before valueChecker end
+          return state.merge({
+            isLoading: isLoading,
+            canSubmit: !(isLoading || data.error),
+            hasBeenModified: this.hasBeenModified(state.get('value')),
+          });
+        }
         return state.merge({
           error: data.error,
           isLoading: isLoading,
@@ -179,7 +185,6 @@ export class Field{
           return state.merge({
             value: value, 
             canSubmit: false,
-            //isLoading: isLoading + 1,
             hasBeenModified: this.hasBeenModified(value),
           });
         }
@@ -188,6 +193,7 @@ export class Field{
             value: value, 
             error: this.getError(value),
             hasBeenModified: this.hasBeenModified(value),
+            canSubmit: false,
           });
         }
         return state.merge({
@@ -242,70 +248,6 @@ export class Field{
   }
 
 
-  // initState(){
-  //   this.hasNewValue= new Bacon.Bus();
-  //   this.doReset = new Bacon.Bus();
-  //
-  //   let hasValue = this.hasNewValue;
-  //   let ajaxResponse = new Bacon.Bus();
-  //   let isLoading = new Bacon.Bus();
-  //
-  //   if(this.schema.valueChecker){
-  //     let stream = hasValue.throttle(this.schema.valueChecker.throttle || 100);
-  //     hasValue = stream.flatMap( data => {
-  //       let ajaxRequest = Bacon.fromPromise(this.schema.valueChecker.checker(data.value));
-  //       isLoading.push(true);
-  //       return Bacon.constant(data).combine(ajaxRequest, (data, isValid) => {
-  //           isLoading.push(false);
-  //           if(!isValid) data.error = this.schema.valueChecker.error || 'Wrong Input!';
-  //           return data;
-  //         })
-  //     });
-  //   }
-  //
-  //   this.state = Bacon.update(
-  //     {
-  //       value: this.defaultValue,
-  //       field: this,
-  //       domainValues: this.schema.domainValues,
-  //       error: this.checkError(this.defaultValue),
-  //       canSubmit: !this.checkError(this.defaultValue),
-  //       isLoading: false,
-  //     },
-  //     this.doReset, (state, x) => {
-  //       return {
-  //         value: this.defaultValue,
-  //         field: this,
-  //         domainValues: this.schema.domainValues,
-  //         error: this.checkError(this.defaultValue),
-  //         canSubmit: !this.checkError(this.defaultValue),
-  //         isLoading: false,
-  //       }
-  //     },
-  //     isLoading, (state, isLoading) => {
-  //       state.isLoading = isLoading;
-  //       state.canSubmit = !(state.isLoading || state.error);
-  //       return state;
-  //     },
-  //     hasValue, (state, data) => {
-  //       if(this.schema.valueChecker){
-  //         state.value = data.value;
-  //         state.error = data.error;
-  //       }else{
-  //         if(this.checkValue(data.value)){
-  //           state.value = data.value;
-  //           state.error = undefined;
-  //         }else{
-  //           state.value = data.value;
-  //           state.error = this.getError(data.value) 
-  //         }
-  //       }
-  //       state.canSubmit = !(state.isLoading || state.error);
-  //       return state;
-  //     },
-  //   );
-  // }
-  
   castedValue(value){
     switch(this.type){
       case 'number':
@@ -325,7 +267,12 @@ export class Field{
 
   checkValue(value){
     if(this.isNull(value)) return !this.isRequired();
+    if(this.domainValue) return this.checkDomain(value);
     return this.checkPattern(value);
+  }
+
+  checkDomain(value){
+    return _.isFunction(this.domainValue) ? this.domainValue(value) : _.contains(this.domainValue, value);
   }
 
   checkError(value){
@@ -334,6 +281,10 @@ export class Field{
 
   checkPattern(value){
     return String(value).match(this.getPattern());
+  }
+
+  get domainValue(){
+    return this.schema.domainValue;
   }
 
   get defaultValue(){
@@ -363,6 +314,7 @@ export class Field{
   getError(value){
     if(this.isNull(value) && this.isRequired()) return "Input required";
     if(this.pattern) return "Input doesn't match pattern!"
+    if(this.domainValue) return "Input doesn't match domain value!"
     switch(this.type){
       case 'number':
         return "Input is not a number!";

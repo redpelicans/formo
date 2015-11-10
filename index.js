@@ -4,7 +4,7 @@ Object.defineProperty(exports, '__esModule', {
   value: true
 });
 
-var _get = function get(_x, _x2, _x3) { var _again = true; _function: while (_again) { var object = _x, property = _x2, receiver = _x3; _again = false; if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x = parent; _x2 = property; _x3 = receiver; _again = true; desc = parent = undefined; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
+var _get = function get(_x2, _x3, _x4) { var _again = true; _function: while (_again) { var object = _x2, property = _x3, receiver = _x4; _again = false; if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x2 = parent; _x3 = property; _x4 = receiver; _again = true; desc = parent = undefined; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
 
@@ -236,7 +236,9 @@ var MultiField = (function (_AbstractMultiField3) {
 exports.MultiField = MultiField;
 
 var Field = (function () {
-  function Field(name, schema) {
+  function Field(name) {
+    var schema = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+
     _classCallCheck(this, _Field);
 
     this.schema = schema;
@@ -252,7 +254,6 @@ var Field = (function () {
 
       var defaultState = _immutable2['default'].Map({
         value: defaultValue,
-        domainValues: this.schema.domainValues,
         error: this.checkError(defaultValue),
         canSubmit: !this.checkError(defaultValue),
         isLoading: 0,
@@ -261,8 +262,15 @@ var Field = (function () {
 
       var checkedValueCommand = function checkedValueCommand(data) {
         return function (state) {
-          // TODO: value may have changed!!
           var isLoading = state.get('isLoading') - 1;
+          if (state.get('value') !== data.value) {
+            // value has changed before valueChecker end
+            return state.merge({
+              isLoading: isLoading,
+              canSubmit: !(isLoading || data.error),
+              hasBeenModified: _this3.hasBeenModified(state.get('value'))
+            });
+          }
           return state.merge({
             error: data.error,
             isLoading: isLoading,
@@ -279,7 +287,6 @@ var Field = (function () {
             return state.merge({
               value: value,
               canSubmit: false,
-              //isLoading: isLoading + 1,
               hasBeenModified: _this3.hasBeenModified(value)
             });
           }
@@ -287,7 +294,8 @@ var Field = (function () {
             return state.merge({
               value: value,
               error: _this3.getError(value),
-              hasBeenModified: _this3.hasBeenModified(value)
+              hasBeenModified: _this3.hasBeenModified(value),
+              canSubmit: false
             });
           }
           return state.merge({
@@ -346,71 +354,6 @@ var Field = (function () {
         return command(state);
       }, defaultState);
     }
-
-    // initState(){
-    //   this.hasNewValue= new Bacon.Bus();
-    //   this.doReset = new Bacon.Bus();
-    //
-    //   let hasValue = this.hasNewValue;
-    //   let ajaxResponse = new Bacon.Bus();
-    //   let isLoading = new Bacon.Bus();
-    //
-    //   if(this.schema.valueChecker){
-    //     let stream = hasValue.throttle(this.schema.valueChecker.throttle || 100);
-    //     hasValue = stream.flatMap( data => {
-    //       let ajaxRequest = Bacon.fromPromise(this.schema.valueChecker.checker(data.value));
-    //       isLoading.push(true);
-    //       return Bacon.constant(data).combine(ajaxRequest, (data, isValid) => {
-    //           isLoading.push(false);
-    //           if(!isValid) data.error = this.schema.valueChecker.error || 'Wrong Input!';
-    //           return data;
-    //         })
-    //     });
-    //   }
-    //
-    //   this.state = Bacon.update(
-    //     {
-    //       value: this.defaultValue,
-    //       field: this,
-    //       domainValues: this.schema.domainValues,
-    //       error: this.checkError(this.defaultValue),
-    //       canSubmit: !this.checkError(this.defaultValue),
-    //       isLoading: false,
-    //     },
-    //     this.doReset, (state, x) => {
-    //       return {
-    //         value: this.defaultValue,
-    //         field: this,
-    //         domainValues: this.schema.domainValues,
-    //         error: this.checkError(this.defaultValue),
-    //         canSubmit: !this.checkError(this.defaultValue),
-    //         isLoading: false,
-    //       }
-    //     },
-    //     isLoading, (state, isLoading) => {
-    //       state.isLoading = isLoading;
-    //       state.canSubmit = !(state.isLoading || state.error);
-    //       return state;
-    //     },
-    //     hasValue, (state, data) => {
-    //       if(this.schema.valueChecker){
-    //         state.value = data.value;
-    //         state.error = data.error;
-    //       }else{
-    //         if(this.checkValue(data.value)){
-    //           state.value = data.value;
-    //           state.error = undefined;
-    //         }else{
-    //           state.value = data.value;
-    //           state.error = this.getError(data.value)
-    //         }
-    //       }
-    //       state.canSubmit = !(state.isLoading || state.error);
-    //       return state;
-    //     },
-    //   );
-    // }
-
   }, {
     key: 'castedValue',
     value: function castedValue(value) {
@@ -434,7 +377,13 @@ var Field = (function () {
     key: 'checkValue',
     value: function checkValue(value) {
       if (this.isNull(value)) return !this.isRequired();
+      if (this.domainValue) return this.checkDomain(value);
       return this.checkPattern(value);
+    }
+  }, {
+    key: 'checkDomain',
+    value: function checkDomain(value) {
+      return _lodash2['default'].isFunction(this.domainValue) ? this.domainValue(value) : _lodash2['default'].contains(this.domainValue, value);
     }
   }, {
     key: 'checkError',
@@ -451,6 +400,7 @@ var Field = (function () {
     value: function getError(value) {
       if (this.isNull(value) && this.isRequired()) return "Input required";
       if (this.pattern) return "Input doesn't match pattern!";
+      if (this.domainValue) return "Input doesn't match domain value!";
       switch (this.type) {
         case 'number':
           return "Input is not a number!";
@@ -507,6 +457,11 @@ var Field = (function () {
     key: 'isRequired',
     value: function isRequired() {
       return this.schema.required;
+    }
+  }, {
+    key: 'domainValue',
+    get: function get() {
+      return this.schema.domainValue;
     }
   }, {
     key: 'defaultValue',
