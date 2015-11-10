@@ -32,26 +32,21 @@ As usual: `$ npm install formo`
 
 A `Formo` object is mainly a tree made of reactive `Fields` associated with their own schema validation. We can observe field states and publish values to them.
 
-#### Let's define our first schema:
+#### Let's use our first schema:
 
 ```
-import {Field, MultiField, Formo} from 'formo';
+import {Field, Formo} from 'formo';
 
 const formo = new Formo([
-  new MultiField('price', {
-    new Field('amount', {
-      label: 'Amount',
-      type: 'number'
-    }),
-    new Field('currency', {
-      label: 'Currency',
-      domainValue: ['EUR', 'USD', 'GBP']
-    })
+  new Field('price', {
+    label: 'Amount',
+    type: 'number',
+    defaultValue: 40
   })
 ])
 ```
 
-We would like to define an html element to render prices (it will be made of to fields: `amount` and `currency`):
+We would like to define an html element to render prices:
 
 ```
 const price = formo.field('price');
@@ -81,8 +76,31 @@ import Kefir from 'kefir';
 price.newValueStream.plug(Kefir.sequentially(10, [42, 42.5, 43]));
 ```
 
-Console we will display: 42 42.5 43
+Console we will display: 40 42 42.5 43
+
+Not very useful yet, so continu ...
+
+### API
+
+#### Field
+
+A field is defined by a `schema`, it can be binded to a plain javascript object that should be compatible with the previsous schema. 
+
+`new Field(name, schema)`
+
+* `name`: key to identify the field within a `formo` object. A formo obect is a tree, so `name`should be a key at each tree's level.
+* `schema`: JS object:
+  * `schema.label`: used be client library to display element name
+  * `schema.type`: following types are managed ['text', 'number', 'interger', 'boolean']
+  * `schema.pattern`: regext that `field.value` should match
+  * `schema.defaultValue`: default value at initialisation and after a `reset` of the field
+  * `schema.domainValue`
 
 
+A field exports 4 `Kefir` streams. 3 of them are used to publish values or send commands, the last one `state` is to observe field's states.  
+
+#### MultiField
+
+#### Formo
 
 That's all folks ....
