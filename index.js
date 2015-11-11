@@ -301,6 +301,11 @@ var Field = (function () {
         hasBeenModified: false
       });
 
+      this.newValueStream = _kefir2['default'].pool();
+      this.resetStream = _kefir2['default'].pool();
+
+      var commands = _kefir2['default'].pool();
+
       var checkedValueCommand = function checkedValueCommand(data) {
         return function (state) {
           var isLoading = state.get('isLoading') - 1;
@@ -323,8 +328,7 @@ var Field = (function () {
 
       var newValueCommand = function newValueCommand(value) {
         return function (state) {
-          if (_this4.schema.valueChecker) {
-            var isLoading = state.get('isLoading');
+          if (_this4.schema.valueChecker && !(_this4.isNull(value) && _this4.isRequired())) {
             return state.merge({
               value: value,
               canSubmit: false,
@@ -358,14 +362,9 @@ var Field = (function () {
         return function (state) {
           return state.update('isLoading', function (x) {
             return x + 1;
-          });
+          }).set('canSubmit', false);
         };
       };
-
-      this.newValueStream = _kefir2['default'].pool();
-      this.resetStream = _kefir2['default'].pool();
-
-      var commands = _kefir2['default'].pool();
 
       commands.plug(this.newValueStream.map(function (value) {
         return newValueCommand(value);
@@ -375,15 +374,14 @@ var Field = (function () {
       }));
 
       if (this.schema.valueChecker) {
-        var stream = this.newValueStream.debounce(this.schema.valueChecker.debounce || 10).flatMap(function (value) {
+        var stream = this.newValueStream.filter(function (value) {
+          return !(_this4.isRequired() && _this4.isNull(value));
+        }).debounce(this.schema.valueChecker.debounce || 10).flatMap(function (value) {
           commands.plug(_kefir2['default'].constant(isLoadingCommand()));
           var ajaxRequest = _kefir2['default'].fromPromise(_this4.schema.valueChecker.checker(value));
-          return _kefir2['default'].constant(value).combine(ajaxRequest, function (value, isValid) {
-            if (!isValid) return {
-              error: _this4.schema.valueChecker.error || 'Wrong Input!',
-              value: value
-            };
-            return { error: undefined, value: value };
+          return _kefir2['default'].constant(value).combine(ajaxRequest, function (value, res) {
+            if (!res.checked) return { error: res.error || 'Wrong Input!', value: value };
+            return { value: value, error: undefined };
           });
         });
         commands.plug(stream.map(function (value) {

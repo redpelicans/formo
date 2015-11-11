@@ -5,7 +5,7 @@ import _ from 'lodash';
 function checker(res){
   return function(price){
     const promise = new Promise( (resolve, reject) => {
-      setTimeout( () => resolve(res), 20);
+      setTimeout( () => resolve({checked: res, error: 'server error'}), 20);
     });
     return promise;
   }
@@ -283,6 +283,7 @@ describe('fields', function(){
       const field = formo.field('price');
       field.state.skip(0).onValue( s => {
         should(s.toJS().canSubmit).be.false();
+        should(s.toJS().error).be.a.String();
         done();
       });
     });
@@ -326,8 +327,7 @@ describe('fields', function(){
         label: 'Price', 
         valueChecker: { 
           checker: checker(false), 
-          debounce: 10, 
-          error: error
+          debounce: 10
         },
       })]);
 
@@ -335,7 +335,7 @@ describe('fields', function(){
       field.state.skip(3).onValue( s => {
         const res = s.toJS();
         should(res.value).equal(42);
-        should(res.error).be.equal(error);
+        should(res.error).be.a.String();
         should(res.canSubmit).be.false();
         should(res.isLoading).equal(0);
         done();

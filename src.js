@@ -90,7 +90,7 @@ class AbstractMultiField{
 }
 
 export class Formo extends AbstractMultiField{
-  constructor(fields, document){
+  constructor(fields=[], document){
     super(fields);
     this.propagateParent();
     this.document = document;
@@ -173,6 +173,11 @@ export class Field{
       , hasBeenModified: false
     });
 
+    this.newValueStream = Kefir.pool();
+    this.resetStream = Kefir.pool();
+
+    const commands = Kefir.pool();
+
     const checkedValueCommand = (data) => {
       return state => {
         const isLoading = state.get('isLoading') - 1;
@@ -195,11 +200,11 @@ export class Field{
 
     const newValueCommand = (value) => {
       return (state) => {
-        if(this.schema.valueChecker){
-          const isLoading = state.get('isLoading');
+        if(this.schema.valueChecker && !( this.isNull(value) && this.isRequired() )){
           return state.merge({
             value: value, 
             canSubmit: false,
+            error: undefined,
             hasBeenModified: this.hasBeenModified(value),
           });
         }
@@ -228,14 +233,10 @@ export class Field{
 
     const isLoadingCommand = () => {
       return (state) => {
-        return state.update('isLoading', x => x + 1);
+        return state.update('isLoading', x => x + 1).set('canSubmit', false);
       }
     }
 
-    this.newValueStream = Kefir.pool();
-    this.resetStream = Kefir.pool();
-
-    const commands = Kefir.pool();
 
     commands.plug(this.newValueStream.map(value => newValueCommand(value)));
     commands.plug(this.resetStream.map(value => resetCommand()));
@@ -243,17 +244,14 @@ export class Field{
 
     if(this.schema.valueChecker){
       const stream = this.newValueStream
+        .filter(value => !(this.isRequired() && this.isNull(value)))
         .debounce(this.schema.valueChecker.debounce || 10)
         .flatMap( value => {
           commands.plug(Kefir.constant(isLoadingCommand()));
           const ajaxRequest = Kefir.fromPromise(this.schema.valueChecker.checker(value));
-          return Kefir.constant(value).combine(ajaxRequest, (value, isValid) => {
-              if(!isValid) 
-                return {
-                  error: this.schema.valueChecker.error || 'Wrong Input!',
-                  value: value
-                }
-              return {error: undefined, value: value};
+          return Kefir.constant(value).combine(ajaxRequest, (value, res) => {
+              if(!res.checked) return { error: res.error || 'Wrong Input!', value: value }
+              return {value: value, error: undefined};
             })
         })
         commands.plug(stream.map(value => checkedValueCommand(value)));
