@@ -3,6 +3,8 @@
 
 A reactive helper and validator library for html forms
 
+See online [Demo](http://redpelicans.github.io/formo-react-sample/)
+
 ### Why formo, why another form library ?
 
 I was working on a reactive app and had to craft htlm forms. Because it was very difficult to find a library able to correctly cover the event dimension of the problem, I decided to create one. Here is formo ...
