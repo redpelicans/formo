@@ -1,20 +1,13 @@
 'use strict';
 
-Object.defineProperty(exports, '__esModule', {
+var _slicedToArray = (function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"]) _i["return"](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }; })();
+
+var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+Object.defineProperty(exports, "__esModule", {
   value: true
 });
-
-var _slicedToArray = (function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i['return']) _i['return'](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError('Invalid attempt to destructure non-iterable instance'); } }; })();
-
-var _get = function get(_x2, _x3, _x4) { var _again = true; _function: while (_again) { var object = _x2, property = _x3, receiver = _x4; _again = false; if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x2 = parent; _x3 = property; _x4 = receiver; _again = true; desc = parent = undefined; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
-
-var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
-
-function _inherits(subClass, superClass) { if (typeof superClass !== 'function' && superClass !== null) { throw new TypeError('Super expression must either be null or a function, not ' + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
+exports.Field = exports.MultiField = exports.Formo = undefined;
 
 var _lodash = require('lodash');
 
@@ -28,6 +21,14 @@ var _immutable = require('immutable');
 
 var _immutable2 = _interopRequireDefault(_immutable);
 
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
 var AbstractMultiField = (function () {
   function AbstractMultiField(fields, name) {
     _classCallCheck(this, AbstractMultiField);
@@ -40,7 +41,7 @@ var AbstractMultiField = (function () {
   _createClass(AbstractMultiField, [{
     key: 'reset',
     value: function reset() {
-      _lodash2['default'].each(this.fields, function (field) {
+      _lodash2.default.each(this.fields, function (field) {
         return field.reset();
       });
     }
@@ -49,7 +50,7 @@ var AbstractMultiField = (function () {
     value: function hasBeenModified(state) {
       var _this = this;
 
-      return _lodash2['default'].any(state, function (subState, name) {
+      return _lodash2.default.any(state, function (subState, name) {
         var field = _this.field(name);
         if (field && field.hasBeenModified) return field.hasBeenModified(subState);else return false;
       });
@@ -57,7 +58,7 @@ var AbstractMultiField = (function () {
   }, {
     key: 'field',
     value: function field(path) {
-      return _lodash2['default'].inject(path.split('/').filter(function (x) {
+      return _lodash2.default.inject(path.split('/').filter(function (x) {
         return x != '';
       }), function (o, p) {
         return o && o.fields[p];
@@ -81,8 +82,8 @@ var AbstractMultiField = (function () {
         _iteratorError = err;
       } finally {
         try {
-          if (!_iteratorNormalCompletion && _iterator['return']) {
-            _iterator['return']();
+          if (!_iteratorNormalCompletion && _iterator.return) {
+            _iterator.return();
           }
         } finally {
           if (_didIteratorError) {
@@ -96,9 +97,9 @@ var AbstractMultiField = (function () {
     value: function combineStates() {
       var _this2 = this;
 
-      var commands = _kefir2['default'].pool();
+      var commands = _kefir2.default.pool();
       var fields = this.fields;
-      var defaultState = _immutable2['default'].Map({
+      var defaultState = _immutable2.default.Map({
         canSubmit: true,
         hasBeenModified: false,
         isLoading: false
@@ -108,15 +109,15 @@ var AbstractMultiField = (function () {
         return function (parentState) {
           var newParentState = parentState.set(field.key, state);
           var subStates = newParentState.filter(function (subState) {
-            return _immutable2['default'].Map.isMap(subState) && subState.has('canSubmit');
+            return _immutable2.default.Map.isMap(subState) && subState.has('canSubmit');
           }).toList();
-          var canSubmit = _lodash2['default'].all(subStates.map(function (x) {
+          var canSubmit = _lodash2.default.all(subStates.map(function (x) {
             return x.get('canSubmit');
           }).toJS());
-          var isLoading = _lodash2['default'].some(subStates.map(function (x) {
+          var isLoading = _lodash2.default.some(subStates.map(function (x) {
             return x.get('isLoading');
           }).toJS());
-          var hasBeenModified = _lodash2['default'].some(subStates.map(function (x) {
+          var hasBeenModified = _lodash2.default.some(subStates.map(function (x) {
             return x.get('hasBeenModified');
           }).toJS());
           return newParentState.merge({
@@ -127,7 +128,7 @@ var AbstractMultiField = (function () {
         };
       };
 
-      _lodash2['default'].each(fields, function (field) {
+      _lodash2.default.each(fields, function (field) {
         commands.plug(field.state.map(function (state) {
           return mergeChildrenState(field, state);
         }));
@@ -153,7 +154,7 @@ var AbstractMultiField = (function () {
   }, {
     key: 'initState',
     value: function initState() {
-      _lodash2['default'].each(this.fields, function (field) {
+      _lodash2.default.each(this.fields, function (field) {
         field.initState();
       });
       this.state = this.combineStates();
@@ -175,30 +176,33 @@ var AbstractMultiField = (function () {
   return AbstractMultiField;
 })();
 
-var Formo = (function (_AbstractMultiField) {
+var Formo = exports.Formo = (function (_AbstractMultiField) {
   _inherits(Formo, _AbstractMultiField);
 
-  function Formo(fields, document) {
-    if (fields === undefined) fields = [];
+  function Formo() {
+    var fields = arguments.length <= 0 || arguments[0] === undefined ? [] : arguments[0];
+    var document = arguments[1];
 
     _classCallCheck(this, Formo);
 
-    _get(Object.getPrototypeOf(Formo.prototype), 'constructor', this).call(this, fields);
-    this.propagateParent();
-    this.document = document;
+    var _this3 = _possibleConstructorReturn(this, Object.getPrototypeOf(Formo).call(this, fields));
 
-    this.markStream = _kefir2['default'].pool();
-    this.initState();
+    _this3.propagateParent();
+    _this3.document = document;
 
-    this.submitStream = _kefir2['default'].pool();
-    this.submitted = this.state.sampledBy(this.submitStream, function (state, options) {
+    _this3.markStream = _kefir2.default.pool();
+    _this3.initState();
+
+    _this3.submitStream = _kefir2.default.pool();
+    _this3.submitted = _this3.state.sampledBy(_this3.submitStream, function (state, options) {
       return state.set('submitOptions', options);
     });
 
-    this.cancelStream = _kefir2['default'].pool();
-    this.cancelled = this.state.sampledBy(this.cancelStream, function (state, options) {
+    _this3.cancelStream = _kefir2.default.pool();
+    _this3.cancelled = _this3.state.sampledBy(_this3.cancelStream, function (state, options) {
       return state.set('cancelOptions', options);
     });
+    return _this3;
   }
 
   _createClass(Formo, [{
@@ -206,7 +210,7 @@ var Formo = (function (_AbstractMultiField) {
     value: function propagateParent() {
       function propagate(parent) {
         if (!parent.fields) return;
-        _lodash2['default'].each(parent.fields, function (field) {
+        _lodash2.default.each(parent.fields, function (field) {
           field.parent = parent;
           propagate(field);
         });
@@ -216,23 +220,23 @@ var Formo = (function (_AbstractMultiField) {
   }, {
     key: 'submit',
     value: function submit(options) {
-      this.submitStream.plug(_kefir2['default'].constant(_immutable2['default'].fromJS(options)));
+      this.submitStream.plug(_kefir2.default.constant(_immutable2.default.fromJS(options)));
     }
   }, {
     key: 'cancel',
     value: function cancel(options) {
-      this.cancelStream.plug(_kefir2['default'].constant(_immutable2['default'].fromJS(options)));
+      this.cancelStream.plug(_kefir2.default.constant(_immutable2.default.fromJS(options)));
     }
   }, {
     key: 'mark',
     value: function mark(value) {
-      this.markStream.plug(_kefir2['default'].constant(value));
+      this.markStream.plug(_kefir2.default.constant(value));
     }
   }, {
     key: 'getDocumentValue',
     value: function getDocumentValue(path) {
       if (!this.document) return;
-      return _lodash2['default'].inject(path.split('/').filter(function (x) {
+      return _lodash2.default.inject(path.split('/').filter(function (x) {
         return x !== '';
       }), function (d, p) {
         return d && d[p];
@@ -241,7 +245,7 @@ var Formo = (function (_AbstractMultiField) {
   }, {
     key: 'toDocument',
     value: function toDocument(state) {
-      var _this3 = this;
+      var _this4 = this;
 
       var res = {};
       state.mapEntries(function (_ref) {
@@ -250,8 +254,8 @@ var Formo = (function (_AbstractMultiField) {
         var name = _ref2[0];
         var subState = _ref2[1];
 
-        if (_immutable2['default'].Map.isMap(subState)) {
-          if (subState.has('value')) res[name] = _this3.field(subState.get('path')).castedValue(subState.get('value'));else res[name] = _this3.toDocument(subState);
+        if (_immutable2.default.Map.isMap(subState)) {
+          if (subState.has('value')) res[name] = _this4.field(subState.get('path')).castedValue(subState.get('value'));else res[name] = _this4.toDocument(subState);
         }
       });
       return res;
@@ -261,23 +265,19 @@ var Formo = (function (_AbstractMultiField) {
   return Formo;
 })(AbstractMultiField);
 
-exports.Formo = Formo;
-
-var MultiField = (function (_AbstractMultiField2) {
+var MultiField = exports.MultiField = (function (_AbstractMultiField2) {
   _inherits(MultiField, _AbstractMultiField2);
 
   function MultiField(name, fields) {
     _classCallCheck(this, MultiField);
 
-    _get(Object.getPrototypeOf(MultiField.prototype), 'constructor', this).call(this, fields, name);
+    return _possibleConstructorReturn(this, Object.getPrototypeOf(MultiField).call(this, fields, name));
   }
 
   return MultiField;
 })(AbstractMultiField);
 
-exports.MultiField = MultiField;
-
-var Field = (function () {
+var Field = exports.Field = (function () {
   function Field(name) {
     var schema = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
 
@@ -290,11 +290,11 @@ var Field = (function () {
   _createClass(Field, [{
     key: 'initState',
     value: function initState() {
-      var _this4 = this;
+      var _this6 = this;
 
       var defaultValue = this.defaultValue;
 
-      var defaultState = _immutable2['default'].Map({
+      var defaultState = _immutable2.default.Map({
         value: defaultValue,
         path: this.path,
         error: this.checkError(defaultValue),
@@ -303,10 +303,10 @@ var Field = (function () {
         hasBeenModified: false
       });
 
-      this.newValueStream = _kefir2['default'].pool();
-      this.resetStream = _kefir2['default'].pool();
+      this.newValueStream = _kefir2.default.pool();
+      this.resetStream = _kefir2.default.pool();
 
-      var commands = _kefir2['default'].pool();
+      var commands = _kefir2.default.pool();
 
       var checkedValueCommand = function checkedValueCommand(data) {
         return function (state) {
@@ -316,40 +316,40 @@ var Field = (function () {
             return state.merge({
               isLoading: isLoading,
               canSubmit: !(isLoading || data.error),
-              hasBeenModified: _this4.hasBeenModified(state.get('value'))
+              hasBeenModified: _this6.hasBeenModified(state.get('value'))
             });
           }
           return state.merge({
             error: data.error,
             isLoading: isLoading,
             canSubmit: !(isLoading || data.error),
-            hasBeenModified: _this4.hasBeenModified(state.get('value'))
+            hasBeenModified: _this6.hasBeenModified(state.get('value'))
           });
         };
       };
 
       var newValueCommand = function newValueCommand(value) {
         return function (state) {
-          if (_this4.schema.valueChecker && !(_this4.isNull(value) && _this4.isRequired())) {
+          if (_this6.schema.valueChecker && !(_this6.isNull(value) && _this6.isRequired())) {
             return state.merge({
               value: value,
               canSubmit: false,
               error: undefined,
-              hasBeenModified: _this4.hasBeenModified(value)
+              hasBeenModified: _this6.hasBeenModified(value)
             });
           }
-          if (!_this4.checkValue(value)) {
+          if (!_this6.checkValue(value)) {
             return state.merge({
               value: value,
-              error: _this4.getError(value),
-              hasBeenModified: _this4.hasBeenModified(value),
+              error: _this6.getError(value),
+              hasBeenModified: _this6.hasBeenModified(value),
               canSubmit: false
             });
           }
           return state.merge({
             value: value,
             error: undefined,
-            hasBeenModified: _this4.hasBeenModified(value),
+            hasBeenModified: _this6.hasBeenModified(value),
             canSubmit: !state.get('isLoading')
           });
         };
@@ -378,11 +378,11 @@ var Field = (function () {
 
       if (this.schema.valueChecker) {
         var stream = this.newValueStream.filter(function (value) {
-          return !(_this4.isRequired() && _this4.isNull(value));
+          return !(_this6.isRequired() && _this6.isNull(value));
         }).debounce(this.schema.valueChecker.debounce || 10).flatMap(function (value) {
-          commands.plug(_kefir2['default'].constant(isLoadingCommand()));
-          var ajaxRequest = _kefir2['default'].fromPromise(_this4.schema.valueChecker.checker(value));
-          return _kefir2['default'].constant(value).combine(ajaxRequest, function (value, res) {
+          commands.plug(_kefir2.default.constant(isLoadingCommand()));
+          var ajaxRequest = _kefir2.default.fromPromise(_this6.schema.valueChecker.checker(value));
+          return _kefir2.default.constant(value).combine(ajaxRequest, function (value, res) {
             if (!res.checked) return { error: res.error || 'Wrong Input!', value: value };
             return { value: value, error: undefined };
           });
@@ -425,7 +425,7 @@ var Field = (function () {
   }, {
     key: 'checkDomain',
     value: function checkDomain(value) {
-      return _lodash2['default'].isFunction(this.domainValue) ? this.domainValue(value) : _lodash2['default'].contains(this.domainValue, value);
+      return _lodash2.default.isFunction(this.domainValue) ? this.domainValue(value) : _lodash2.default.contains(this.domainValue, value);
     }
   }, {
     key: 'checkError',
@@ -483,17 +483,17 @@ var Field = (function () {
   }, {
     key: 'isNull',
     value: function isNull(value) {
-      return _lodash2['default'].isUndefined(value) || value === "";
+      return _lodash2.default.isUndefined(value) || value === "";
     }
   }, {
     key: 'setValue',
     value: function setValue(value) {
-      this.newValueStream.plug(_kefir2['default'].constant(value));
+      this.newValueStream.plug(_kefir2.default.constant(value));
     }
   }, {
     key: 'reset',
     value: function reset() {
-      this.resetStream.plug(_kefir2['default'].constant(true));
+      this.resetStream.plug(_kefir2.default.constant(true));
     }
   }, {
     key: 'isRequired',
@@ -539,5 +539,3 @@ var Field = (function () {
 
   return Field;
 })();
-
-exports.Field = Field;
