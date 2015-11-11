@@ -179,6 +179,8 @@ var Formo = (function (_AbstractMultiField) {
   _inherits(Formo, _AbstractMultiField);
 
   function Formo(fields, document) {
+    if (fields === undefined) fields = [];
+
     _classCallCheck(this, Formo);
 
     _get(Object.getPrototypeOf(Formo.prototype), 'constructor', this).call(this, fields);
@@ -332,6 +334,7 @@ var Field = (function () {
             return state.merge({
               value: value,
               canSubmit: false,
+              error: undefined,
               hasBeenModified: _this4.hasBeenModified(value)
             });
           }
