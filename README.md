@@ -350,7 +350,11 @@ A `MultiField` is an observable, like a `Formo` object (see above).
 * `MultiField#state.onValue(fieldState)` gives you an agregation of children's states. 
 
 ```
-const formo = new Formo([new MultiField('bike', [new Field('price')])]);
+const formo = new Formo([
+  new MultiField('bike', [
+    new Field('price')
+    ])
+  ]);
 const [bike, price] = [formo.field('bike'), formo.field('/bike/price')];
 
 bike.state.onValue(state => console.log(state.toJS()));
