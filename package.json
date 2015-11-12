@@ -1,6 +1,6 @@
 {
   "name": "formo",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "reactive form helper and validation library",
   "author": "Eric Basley <eric.basley@redpelicans.com>",
   "keywords": [

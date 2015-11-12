@@ -19,7 +19,7 @@ describe('fields', function(){
       const formo = new Formo([new Field('price', { label: 'Price', type: 'text' })]);
       const field = formo.field('price');
       field.state.skip(1).onValue( s => {
-        const res = s;
+        const res = s.toJS();
         should(res.value).equal('42');
         should(res.error).be.undefined;
         should(res.canSubmit).be.true();
@@ -34,7 +34,7 @@ describe('fields', function(){
       const formo = new Formo([new Field('price', { label: 'Price', type: 'integer', defaultValue: 43 })]);
       const field = formo.field('price');
       field.state.onValue( s => {
-        const res = s;
+        const res = s.toJS();
         should(res.value).equal(43);
         should(res.error).be.undefined;
         should(res.canSubmit).be.true();
@@ -48,7 +48,7 @@ describe('fields', function(){
       const formo = new Formo([new Field('price', { label: 'Price', type: 'integer', defaultValue: 43 })]);
       const field = formo.field('price');
       field.state.skip(2).onValue( s => {
-        const res = s;
+        const res = s.toJS();
         should(res.value).equal(43);
         should(res.error).be.undefined;
         should(res.canSubmit).be.true();
@@ -62,11 +62,27 @@ describe('fields', function(){
   });
 
   describe('checkValue', () => {
+    it('should not be trimed string', (done) => {
+      const formo = new Formo([new Field('name', { defaultValue: 'toto', type: 'text'})]);
+      const field = formo.field('name');
+      field.state.skip(1).onValue( s => {
+        const res = s.toJS();
+        should(res.value).equal(' toto   ');
+        should(res.error).be.undefined();
+        should(res.canSubmit).be.true();
+        should(res.isLoading).equal(0);
+        should(res.hasBeenModified).be.false();
+        done();
+      });
+      field.setValue(' toto   ');
+    });
+
+
     it('should not be an integer', (done) => {
       const formo = new Formo([new Field('price', { label: 'Price', type: 'integer' })]);
       const field = formo.field('price');
       field.state.skip(1).onValue( s => {
-        const res = s;
+        const res = s.toJS();
         should(res.value).equal(42.42);
         should(res.error).be.a.String();
         should(res.canSubmit).be.false();
@@ -81,7 +97,7 @@ describe('fields', function(){
       const formo = new Formo([new Field('price', { label: 'Price', type: 'integer' })]);
       const field = formo.field('price');
       field.state.skip(1).onValue( s => {
-        const res = s;
+        const res = s.toJS();
         should(res.value).equal(42);
         should(res.error).be.undefined();
         should(res.canSubmit).be.true();
@@ -97,7 +113,7 @@ describe('fields', function(){
       const formo = new Formo([new Field('price', { label: 'Price', type: 'number' })]);
       const field = formo.field('price');
       field.state.skip(1).onValue( s => {
-        const res = s;
+        const res = s.toJS();
         should(res.value).equal('camembert');
         should(res.error).be.a.String();
         should(res.canSubmit).be.false();
@@ -112,7 +128,7 @@ describe('fields', function(){
       const formo = new Formo([new Field('price', { label: 'Price', type: 'number' })]);
       const field = formo.field('price');
       field.state.skip(1).onValue( s => {
-        const res = s;
+        const res = s.toJS();
         should(res.value).equal(42.42);
         should(res.error).be.undefined();
         should(res.canSubmit).be.true();
@@ -127,7 +143,7 @@ describe('fields', function(){
       const formo = new Formo([new Field('price', { label: 'Price', type: 'boolean', defaultValue: 'toto' })]);
       const field = formo.field('price');
       field.state.onValue( s => {
-        const res = s;
+        const res = s.toJS();
         should(res.value).equal('toto');
         should(res.error).be.a.String();
         should(res.canSubmit).be.false();
@@ -141,7 +157,7 @@ describe('fields', function(){
       const formo = new Formo([new Field('price', { label: 'Price', type: 'boolean', defaultValue:false })]);
       const field = formo.field('price');
       field.state.onValue( s => {
-        const res = s;
+        const res = s.toJS();
         should(res.value).equal(false);
         should(res.error).be.undefined();
         should(res.canSubmit).be.true();
@@ -155,7 +171,7 @@ describe('fields', function(){
       const formo = new Formo([new Field('price', { label: 'Price', defaultValue: 'toto' })]);
       const field = formo.field('price');
       field.state.onValue( s => {
-        const res = s;
+        const res = s.toJS();
         should(res.value).equal('toto');
         should(res.error).be.undefined();
         should(res.canSubmit).be.true();
@@ -169,7 +185,7 @@ describe('fields', function(){
       const formo = new Formo([new Field('price', { label: 'Price', pattern: /$titi/, defaultValue:'toto' })]);
       const field = formo.field('price');
       field.state.onValue( s => {
-        const res = s;
+        const res = s.toJS();
         should(res.value).equal('toto');
         should(res.error).be.a.String();
         should(res.canSubmit).be.false();
@@ -184,7 +200,7 @@ describe('fields', function(){
       const formo = new Formo([new Field('price', { label: 'Price', pattern: /[1,2,3]/, defaultValue:'abc' })]);
       const field = formo.field('price');
       field.state.onValue( s => {
-        const res = s;
+        const res = s.toJS();
         should(res.value).equal('abc');
         should(res.error).be.a.String();
         should(res.canSubmit).be.false();
@@ -198,7 +214,7 @@ describe('fields', function(){
       const formo = new Formo([new Field('price', { label: 'Price', pattern: /[1,2,3]/, defaultValue:'2' })]);
       const field = formo.field('price');
       field.state.onValue( s => {
-        const res = s;
+        const res = s.toJS();
         should(res.value).equal('2');
         should(res.error).be.undefined();
         should(res.canSubmit).be.true();
@@ -212,7 +228,7 @@ describe('fields', function(){
       const formo = new Formo([new Field('price', { label: 'Price', type:'integer', pattern: /[1,2,3]/, defaultValue:4 })]);
       const field = formo.field('price');
       field.state.onValue( s => {
-        const res = s;
+        const res = s.toJS();
         should(res.value).equal(4);
         should(res.error).be.a.String();
         should(res.canSubmit).be.false();
@@ -229,7 +245,7 @@ describe('fields', function(){
       const formo = new Formo([new Field('price', { label: 'Price', type: 'text', defaultValue: 'toto' })]);
       const field = formo.field('price');
       field.state.skip(1).onValue( s => {
-        should(s.hasBeenModified).be.true();
+        should(s.toJS().hasBeenModified).be.true();
         done();
       });
       field.setValue('titi');
@@ -239,7 +255,7 @@ describe('fields', function(){
       const formo = new Formo([new Field('price', { label: 'Price', type: 'text', defaultValue: 'toto' })]);
       const field = formo.field('price');
       field.state.onValue( s => {
-        should(s.hasBeenModified).be.false();
+        should(s.toJS().hasBeenModified).be.false();
         done();
       });
     });
@@ -248,7 +264,7 @@ describe('fields', function(){
       const formo = new Formo([new Field('price', { label: 'Price', type: 'text', defaultValue: 'toto' })]);
       const field = formo.field('price');
       field.state.skip(2).onValue( s => {
-        should(s.hasBeenModified).be.false();
+        should(s.toJS().hasBeenModified).be.false();
         done();
       });
       field.setValue('titi');
@@ -261,7 +277,7 @@ describe('fields', function(){
       const formo = new Formo([new Field('price', { label: 'Price', type: 'integer', defaultValue: 12 })]);
       const field = formo.field('price');
       field.state.skip(1).onValue( s => {
-        should(s.canSubmit).be.true();
+        should(s.toJS().canSubmit).be.true();
         done();
       });
       field.setValue(12);
@@ -271,7 +287,7 @@ describe('fields', function(){
       const formo = new Formo([new Field('price', { label: 'Price', type: 'integer', defaultValue: 'toto' })]);
       const field = formo.field('price');
       field.state.onValue( s => {
-        should(s.canSubmit).be.false();
+        should(s.toJS().canSubmit).be.false();
         done();
       });
     });
@@ -282,8 +298,8 @@ describe('fields', function(){
       const formo = new Formo([new Field('price', { label: 'Price', type: 'integer', required: true})]);
       const field = formo.field('price');
       field.state.skip(0).onValue( s => {
-        should(s.canSubmit).be.false();
-        should(s.error).be.a.String();
+        should(s.toJS().canSubmit).be.false();
+        should(s.toJS().error).be.a.String();
         done();
       });
     });
@@ -292,7 +308,7 @@ describe('fields', function(){
       const formo = new Formo([new Field('price', { label: 'Price', type: 'integer', required: false })]);
       const field = formo.field('price');
       field.state.skip(0).onValue( s => {
-        should(s.canSubmit).be.true();
+        should(s.toJS().canSubmit).be.true();
         done();
       });
     });
@@ -311,7 +327,7 @@ describe('fields', function(){
 
       const field = formo.field('price');
       field.state.skip(3).onValue( s => {
-        const res = s;
+        const res = s.toJS();
         should(res.value).equal(42);
         should(res.error).be.undefined();
         should(res.canSubmit).be.true();
@@ -333,7 +349,7 @@ describe('fields', function(){
 
       const field = formo.field('price');
       field.state.skip(3).onValue( s => {
-        const res = s;
+        const res = s.toJS();
         should(res.value).equal(42);
         should(res.error).be.a.String();
         should(res.canSubmit).be.false();
@@ -355,7 +371,7 @@ describe('fields', function(){
 
       const field = formo.field('price');
       field.state.skip(2).onValue( s => {
-        const res = s;
+        const res = s.toJS();
         should(res.isLoading).equal(1);
         done();
       });
@@ -373,7 +389,7 @@ describe('fields', function(){
 
       const field = formo.field('price');
       field.state.skip(1).onValue( s => {
-        const res = s;
+        const res = s.toJS();
         should(res.value).equal(42);
         should(res.error).be.undefined();
         should(res.canSubmit).be.true();
@@ -394,7 +410,7 @@ describe('fields', function(){
 
       const field = formo.field('price');
       field.state.skip(1).onValue( s => {
-        const res = s;
+        const res = s.toJS();
         should(res.value).equal(42);
         should(res.error).be.a.String();
         should(res.canSubmit).be.false();
@@ -413,7 +429,7 @@ describe('fields', function(){
 
       const field = formo.field('price');
       field.state.skip(1).onValue( s => {
-        const res = s;
+        const res = s.toJS();
         should(res.value).equal('titi');
         should(res.error).be.a.String();
         should(res.canSubmit).be.false();
@@ -432,7 +448,7 @@ describe('fields', function(){
       const formo = new Formo([new Field('price')]);
       const field = formo.field('price');
       field.state.skip(1).onValue( s => {
-        const res = s;
+        const res = s.toJS();
         should(res.value).equal(42);
         should(res.error).be.a.String();
         done();

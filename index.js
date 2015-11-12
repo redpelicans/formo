@@ -127,7 +127,7 @@ var AbstractMultiField = (function () {
       };
 
       _lodash2.default.each(fields, function (field) {
-        commands.plug(field.immutableState.map(function (state) {
+        commands.plug(field.state.map(function (state) {
           return mergeChildrenState(field, state);
         }));
       });
@@ -155,10 +155,20 @@ var AbstractMultiField = (function () {
       _lodash2.default.each(this.fields, function (field) {
         field.initState();
       });
-      this.immutableState = this.combineStates();
-      this.state = this.immutableState.map(function (state) {
-        return state.toJS();
+      this.state = this.combineStates();
+    }
+  }, {
+    key: 'onValue',
+    value: function onValue(cb) {
+      var _this3 = this;
+
+      var fct = undefined;
+      this.state.onValue(fct = function (state) {
+        return cb(state.toJS());
       });
+      return function () {
+        return _this3.state.offValue(fct);
+      };
     }
   }, {
     key: 'path',
@@ -186,24 +196,24 @@ var Formo = exports.Formo = (function (_AbstractMultiField) {
 
     _classCallCheck(this, Formo);
 
-    var _this3 = _possibleConstructorReturn(this, Object.getPrototypeOf(Formo).call(this, fields));
+    var _this4 = _possibleConstructorReturn(this, Object.getPrototypeOf(Formo).call(this, fields));
 
-    _this3.propagateParent();
-    _this3.document = document;
+    _this4.propagateParent();
+    _this4.document = document;
 
-    _this3.markStream = _kefir2.default.pool();
-    _this3.initState();
+    _this4.markStream = _kefir2.default.pool();
+    _this4.initState();
 
-    _this3.submitStream = _kefir2.default.pool();
-    _this3.submitted = _this3.immutableState.sampledBy(_this3.submitStream, function (state, options) {
-      return state.set('submitOptions', options).toJS();
+    _this4.submitStream = _kefir2.default.pool();
+    _this4.submitted = _this4.state.sampledBy(_this4.submitStream, function (state, options) {
+      return state.set('submitOptions', options);
     });
 
-    _this3.cancelStream = _kefir2.default.pool();
-    _this3.cancelled = _this3.immutableState.sampledBy(_this3.cancelStream, function (state, options) {
-      return state.set('cancelOptions', options).toJS();
+    _this4.cancelStream = _kefir2.default.pool();
+    _this4.cancelled = _this4.state.sampledBy(_this4.cancelStream, function (state, options) {
+      return state.set('cancelOptions', options);
     });
-    return _this3;
+    return _this4;
   }
 
   _createClass(Formo, [{
@@ -217,6 +227,32 @@ var Formo = exports.Formo = (function (_AbstractMultiField) {
         });
       }
       propagate(this);
+    }
+  }, {
+    key: 'onSubmit',
+    value: function onSubmit(cb) {
+      var _this5 = this;
+
+      var fct = undefined;
+      this.submitted.onValue(fct = function (state) {
+        return cb(state.toJS());
+      });
+      return function () {
+        return _this5.submitted.offValue(fct);
+      };
+    }
+  }, {
+    key: 'onCancel',
+    value: function onCancel(cb) {
+      var _this6 = this;
+
+      var fct = undefined;
+      this.cancelled.onValue(fct = function (state) {
+        return cb(state.toJS());
+      });
+      return function () {
+        return _this6.cancelled.offValue(fct);
+      };
     }
   }, {
     key: 'submit',
@@ -254,17 +290,16 @@ var Formo = exports.Formo = (function (_AbstractMultiField) {
     //   });
     //  return res;
     // }
-    //
 
   }, {
     key: 'toDocument',
     value: function toDocument(state) {
-      var _this4 = this;
+      var _this7 = this;
 
       var res = {};
       _lodash2.default.each(state, function (subState, name) {
         if (_lodash2.default.isObject(subState)) {
-          if ('value' in subState && subState.path) res[name] = _this4.field(subState.path).castedValue(subState.value);else res[name] = _this4.toDocument(subState);
+          if ('value' in subState && subState.path) res[name] = _this7.field(subState.path).castedValue(subState.value);else res[name] = _this7.toDocument(subState);
         }
       });
       return res;
@@ -299,7 +334,7 @@ var Field = exports.Field = (function () {
   _createClass(Field, [{
     key: 'initState',
     value: function initState() {
-      var _this6 = this;
+      var _this9 = this;
 
       var defaultValue = this.defaultValue;
 
@@ -325,40 +360,40 @@ var Field = exports.Field = (function () {
             return state.merge({
               isLoading: isLoading,
               canSubmit: !(isLoading || data.error),
-              hasBeenModified: _this6.hasBeenModified(state.get('value'))
+              hasBeenModified: _this9.hasBeenModified(state.get('value'))
             });
           }
           return state.merge({
             error: data.error,
             isLoading: isLoading,
             canSubmit: !(isLoading || data.error),
-            hasBeenModified: _this6.hasBeenModified(state.get('value'))
+            hasBeenModified: _this9.hasBeenModified(state.get('value'))
           });
         };
       };
 
       var newValueCommand = function newValueCommand(value) {
         return function (state) {
-          if (_this6.schema.valueChecker && !(_this6.isNull(value) && _this6.isRequired())) {
+          if (_this9.schema.valueChecker && !(_this9.isNull(value) && _this9.isRequired())) {
             return state.merge({
               value: value,
               canSubmit: false,
               error: undefined,
-              hasBeenModified: _this6.hasBeenModified(value)
+              hasBeenModified: _this9.hasBeenModified(value)
             });
           }
-          if (!_this6.checkValue(value)) {
+          if (!_this9.checkValue(value)) {
             return state.merge({
               value: value,
-              error: _this6.getError(value),
-              hasBeenModified: _this6.hasBeenModified(value),
+              error: _this9.getError(value),
+              hasBeenModified: _this9.hasBeenModified(value),
               canSubmit: false
             });
           }
           return state.merge({
             value: value,
             error: undefined,
-            hasBeenModified: _this6.hasBeenModified(value),
+            hasBeenModified: _this9.hasBeenModified(value),
             canSubmit: !state.get('isLoading')
           });
         };
@@ -387,10 +422,10 @@ var Field = exports.Field = (function () {
 
       if (this.schema.valueChecker) {
         var stream = this.newValueStream.filter(function (value) {
-          return !(_this6.isRequired() && _this6.isNull(value));
+          return !(_this9.isRequired() && _this9.isNull(value));
         }).debounce(this.schema.valueChecker.debounce || 10).flatMap(function (value) {
           commands.plug(_kefir2.default.constant(isLoadingCommand()));
-          var ajaxRequest = _kefir2.default.fromPromise(_this6.schema.valueChecker.checker(value));
+          var ajaxRequest = _kefir2.default.fromPromise(_this9.schema.valueChecker.checker(value));
           return _kefir2.default.constant(value).combine(ajaxRequest, function (value, res) {
             if (!res.checked) return { error: res.error || 'Wrong Input!', value: value };
             return { value: value, error: undefined };
@@ -401,12 +436,22 @@ var Field = exports.Field = (function () {
         }));
       }
 
-      this.immutableState = commands.scan(function (state, command) {
+      this.state = commands.scan(function (state, command) {
         return command(state);
       }, defaultState);
-      this.state = this.immutableState.map(function (state) {
-        return state.toJS();
+    }
+  }, {
+    key: 'onValue',
+    value: function onValue(cb) {
+      var _this10 = this;
+
+      var fct = undefined;
+      this.state.onValue(fct = function (state) {
+        return cb(state.toJS());
       });
+      return function () {
+        return _this10.state.offValue(fct);
+      };
     }
   }, {
     key: 'castedValue',
@@ -417,8 +462,10 @@ var Field = exports.Field = (function () {
           return Number(value);
         case 'boolean':
           return Boolean(value);
-        default:
+        case 'text':
           if (value === '') return;
+          return value.trim ? value.trim() : value;
+        default:
           return value;
       }
     }

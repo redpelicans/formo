@@ -66,7 +66,7 @@ class AbstractMultiField{
     }
 
     _.each(fields, field => {
-      commands.plug(field.immutableState.map( state => mergeChildrenState(field, state)));
+      commands.plug(field.state.map( state => mergeChildrenState(field, state)));
     });
 
     if(this.markStream){
@@ -85,9 +85,15 @@ class AbstractMultiField{
     _.each(this.fields, field =>{
       field.initState();
     })
-    this.immutableState = this.combineStates();
-    this.state = this.immutableState.map( state => state.toJS() );
+    this.state = this.combineStates();
   }
+
+  onValue(cb){
+    let fct;
+    this.state.onValue(fct = state =>  cb(state.toJS()) );
+    return () => this.state.offValue(fct);
+  }
+
 }
 
 export class Formo extends AbstractMultiField{
@@ -100,13 +106,13 @@ export class Formo extends AbstractMultiField{
     this.initState();
     
     this.submitStream = Kefir.pool();
-    this.submitted = this.immutableState.sampledBy(this.submitStream, (state, options) => {
-      return state.set('submitOptions', options).toJS();
+    this.submitted = this.state.sampledBy(this.submitStream, (state, options) => {
+      return state.set('submitOptions', options);
     });
 
     this.cancelStream = Kefir.pool();
-    this.cancelled = this.immutableState.sampledBy(this.cancelStream, (state, options) => {
-      return state.set('cancelOptions', options).toJS();
+    this.cancelled = this.state.sampledBy(this.cancelStream, (state, options) => {
+      return state.set('cancelOptions', options);
     });
   }
 
@@ -119,6 +125,18 @@ export class Formo extends AbstractMultiField{
       })
     }
     propagate(this);
+  }
+
+  onSubmit(cb){
+    let fct;
+    this.submitted.onValue(fct = state => cb(state.toJS()) );
+    return () => this.submitted.offValue(fct);
+  }
+
+  onCancel(cb){
+    let fct;
+    this.cancelled.onValue(fct = state => cb(state.toJS()) );
+    return () => this.cancelled.offValue(fct);
   }
 
   submit(options){
@@ -148,7 +166,7 @@ export class Formo extends AbstractMultiField{
   //   }); 
   //  return res;
   // }
-  //
+ 
   toDocument(state){
     let res = {};
     _.each(state, (subState, name) => {
@@ -270,8 +288,13 @@ export class Field{
         commands.plug(stream.map(value => checkedValueCommand(value)));
     }
 
-    this.immutableState = commands.scan( (state, command) => command(state), defaultState);
-    this.state = this.immutableState.map( state => state.toJS() );
+    this.state = commands.scan( (state, command) => command(state), defaultState);
+  }
+
+  onValue(cb){
+    let fct;
+    this.state.onValue(fct = state =>  cb(state.toJS()) );
+    return () => this.state.offValue(fct);
   }
 
 
@@ -282,8 +305,10 @@ export class Field{
         return Number(value);
       case 'boolean':
         return Boolean(value);
-      default: 
+      case 'text':
         if(value === '')return;
+        return value.trim ? value.trim() : value;
+      default: 
         return value;
     }
   }

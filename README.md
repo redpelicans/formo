@@ -116,18 +116,18 @@ We can call 3 asynchronous methods instead of using stream:
 * `Field#reset(data)`: reset the field, data will be accessible as `resetOptions` in resulting `state`
 * `Field#activate(boolean)`: will set up `isActivate` attribute in the state
 
-A field has no value, it's a reactive structure, if you observe it, you can get one!
+A field has no value, it's a reactive structure, you need to observe it:
 
-* `Field.state` is a Kefir property, so to get its value we need to observe it with `Field.state.onValue`:
 
 ```
   const price = formo.field('price'):
-  price.state.onValue( price => {
+  price.onValue( price => {
     this.setState({price: price});
   });
 ```
 
 * Field.onValue(function(fieldState))`: `fieldState` is a Javascript object with those keys:
+
  * `value`: field value, even if validation failed, a new state with this value will be published.
  * `error`: error string if `value` validation failed. Each time a field receive a value and at initialisation, field will check its value (see `schema` above)
  * `isActivated`: boolean 
@@ -135,6 +135,7 @@ A field has no value, it's a reactive structure, if you observe it, you can get 
  * `canSubmit`: boolean to indicate if value is checked and no processing is in progress
  * `isLoading`: counter of running requests to check values (see `valueChecker`)
 
+* `Field.state` is a Kefir property, you can call `onValue` and get the internal immutable state.
 
 Let's play:
 
@@ -157,7 +158,7 @@ const formo = new Formo([
 ])
 
 const price = formo.field('price');
-price.state.onValue( state => {
+price.onValue( state => {
   console.log(state)
 });
 
@@ -257,7 +258,7 @@ const formo = new Formo([
 })
 
 const price = formo.field('price');
-price.state.onValue( state => {
+price.onValue( state => {
   console.log(state.value)
 });
 
@@ -285,11 +286,11 @@ We can `submit`, `cancel`, `reset`, `activate` a `formo` object thanks to those 
 * `Formo#submit()` | `Formo#submitStream`: used to uncouple component who emits `submit` event from the one who will process it. Latter has to observe the stream `Formo#submitted` (see below)
 * `Formo#cancel()` | `Formo#cancelStream`: same idea as for `submit`
 
-`reset()` and `activate()` will update field's states, so that `Formo#state.onValue(state)` will be called for each of them:
+`reset()` and `activate()` will update field's states, so that `Formo#onValue(state)` will be called for each of them:
 
 ```
 const formo = new Formo([new Field('price', {defaultValue: 42})});
-formo.state.onValue( state => {
+formo.onValue( state => {
   console.log(state.price.value);
 });
 formo.field('price').setValue(44);
@@ -298,11 +299,11 @@ formo.reset();
 
 Will output : 42, 44, 42
 
-`Formo#cancel()` and `Formo#submit()` will not change field's states, we have to observe respectively `Formo#cancelled` and `Formo#submitted` streams to react:
+`Formo#cancel()` and `Formo#submit()` will not change field's states, we have to observe respectively `Formo#cancelled` and `Formo#submitted` streams  or register to `Formo.onSubmit` or `formo.onCancel` to react:
 
 ```
 const formo = new Formo();
-formo.submitted.onValue( state => {
+formo.onSubmit( state => {
   console.log(state);
 });
 formo.submit();
@@ -318,7 +319,7 @@ After a `submit` event it's very common to need the aquivalent of the `Formo` ob
 const formo = new Formo([new MultiField('bike', [new Field('price')])]);
 const [bike, price] = [formo.field('bike'), formo.field('/bike/price')];
 
-formo.submitted.onValue( state => {
+formo.onSubmit( state => {
   console.log(state);
 });
 price.setValue(142)
@@ -329,18 +330,21 @@ Will output: `{ bike: { price: 142 } }`
 
 A `Formo` object is an observable. Returned `state` is an agregation of all children's states. In a `Formo` tree you can observe at any levels :
 
+
 ```
 const formo = new Formo([new MultiField('bike', [new Field('price')])]);
 const [bike, price] = [formo.field('bike'), formo.field('/bike/price')];
 
-formo.state.onValue(state => console.log(state.bike.price.value));
-bike.state.onValue(state => console.log(state.price.value));
-price.state.onValue(state => console.log(state.value));
+formo.onValue(state => console.log(state.bike.price.value));
+bike.onValue(state => console.log(state.price.value));
+price.onValue(state => console.log(state.value));
 
 price.setValue(142);
 ```
 
 Will output: `142 142 142`
+
+Same as for a `Field` you can access Kefir property `Formo.state`.
 
 
 #### MultiField
@@ -351,7 +355,7 @@ A `MultiField` has no value, but you can `reset`, `activate` them.
 
 A `MultiField` is an observable, like a `Formo` object (see above).
 
-* `MultiField#state.onValue(fieldState)` gives you an agregation of children's states. 
+* `MultiField#onValue(fieldState)` gives you an agregation of children's states. 
 
 ```
 const formo = new Formo([
@@ -361,7 +365,7 @@ const formo = new Formo([
   ]);
 const [bike, price] = [formo.field('bike'), formo.field('/bike/price')];
 
-bike.state.onValue(state => console.log(state));
+bike.onValue(state => console.log(state));
 price.setValue(142);
 ```
 
