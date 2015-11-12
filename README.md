@@ -3,7 +3,7 @@
 
 A reactive helper and validator library for html forms
 
-See online [Demo](http://redpelicans.github.io/formo-react-sample/)
+See online React [Demo](http://redpelicans.github.io/formo-react-sample/)
 
 ### Why formo, why another form library ?
 
