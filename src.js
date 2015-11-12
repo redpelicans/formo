@@ -319,7 +319,7 @@ export class Field{
 
   checkValue(value){
     if(this.isNull(value)) return !this.isRequired();
-    if(this.domainValue) return this.checkDomain(value);
+    if(this.domainValue && this.checkDomainValue) return this.checkDomain(value);
     return this.checkPattern(value);
   }
 
@@ -333,6 +333,10 @@ export class Field{
 
   checkPattern(value){
     return String(value).match(this.getPattern());
+  }
+
+  get checkDomainValue(){
+    return this.schema.checkDomainValue;
   }
 
   get domainValue(){
@@ -370,17 +374,17 @@ export class Field{
 
   getError(value){
     if(this.isNull(value) && this.isRequired()) return "Input required";
-    if(this.pattern) return "Input doesn't match pattern!"
-    if(this.domainValue) return "Input doesn't match domain value!"
+    if(this.pattern) return "Value doesn't match pattern!"
+    if(this.domainValue) return "Value doesn't match domain value!"
     switch(this.type){
       case 'number':
-        return "Input is not a number!";
+        return "Value is not a number!";
       case 'integer':
-        return "Input is not an integer!";
+        return "Value is not an integer!";
       case 'boolean':
-        return "Input is not an boolean!";
+        return "Value is not an boolean!";
     }
-    return "Wrong input!";
+    return "Wrong value!";
   }
 
   htmlType(){

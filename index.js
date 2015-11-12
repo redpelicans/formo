@@ -478,7 +478,7 @@ var Field = exports.Field = (function () {
     key: 'checkValue',
     value: function checkValue(value) {
       if (this.isNull(value)) return !this.isRequired();
-      if (this.domainValue) return this.checkDomain(value);
+      if (this.domainValue && this.checkDomainValue) return this.checkDomain(value);
       return this.checkPattern(value);
     }
   }, {
@@ -504,17 +504,17 @@ var Field = exports.Field = (function () {
     key: 'getError',
     value: function getError(value) {
       if (this.isNull(value) && this.isRequired()) return "Input required";
-      if (this.pattern) return "Input doesn't match pattern!";
-      if (this.domainValue) return "Input doesn't match domain value!";
+      if (this.pattern) return "Value doesn't match pattern!";
+      if (this.domainValue) return "Value doesn't match domain value!";
       switch (this.type) {
         case 'number':
-          return "Input is not a number!";
+          return "Value is not a number!";
         case 'integer':
-          return "Input is not an integer!";
+          return "Value is not an integer!";
         case 'boolean':
-          return "Input is not an boolean!";
+          return "Value is not an boolean!";
       }
-      return "Wrong input!";
+      return "Wrong value!";
     }
   }, {
     key: 'htmlType',
@@ -562,6 +562,11 @@ var Field = exports.Field = (function () {
     key: 'isRequired',
     value: function isRequired() {
       return this.schema.required;
+    }
+  }, {
+    key: 'checkDomainValue',
+    get: function get() {
+      return this.schema.checkDomainValue;
     }
   }, {
     key: 'domainValue',
