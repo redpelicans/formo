@@ -1,6 +1,6 @@
 {
   "name": "formo",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "reactive form helper and validation library",
   "author": "Eric Basley <eric.basley@redpelicans.com>",
   "keywords": [
@@ -31,6 +31,9 @@
     "immutable": "^3.7.5",
     "kefir": "^3.1.0",
     "lodash": "^3.10.1"
+  },
+  "babel": {
+    "presets": ["es2015"]
   },
   "license": "Apache"
 }

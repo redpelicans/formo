@@ -34,8 +34,7 @@ describe('formo', function(){
     it('should have a value', (done) => {
       const formo = f();
       const field = formo.field('price');
-      formo.state.skip(1).onValue( s => {
-        const res = s.toJS();
+      formo.state.skip(1).onValue( res => {
         should(res.price.value).equal(42);
         should(res.error).be.undefined;
         should(res.canSubmit).be.true();
@@ -51,8 +50,7 @@ describe('formo', function(){
     it('should not have changed', (done) => {
       const formo = f();
       const field = formo.field('price');
-      formo.submitted.onValue( s => {
-        const res = s.toJS();
+      formo.submitted.onValue( res => {
         should(res.price.value).equal(11);
         should(res.canSubmit).be.true();
         should(res.isLoading).be.false();
@@ -69,8 +67,7 @@ describe('formo', function(){
     it('should not be able to submit', (done) => {
       const formo = f();
       const field = formo.field('price');
-      formo.submitted.onValue( s => {
-        const res = s.toJS();
+      formo.submitted.onValue( res => {
         should(res.price.value).equal('toto');
         should(res.price.error).be.a.String();
         should(res.canSubmit).be.false();
@@ -106,12 +103,11 @@ describe('formo', function(){
       const price = formo.field('price');
       const label = formo.field('/data/label');
       formo.submitted.onValue( state => {
-        const stateJS = state.toJS();
         const res = formo.toDocument(state);
         should(res.price).equal(77);
         should(res.data.label).equal('ici');
-        should(stateJS.hasBeenModified).be.false();
-        should(stateJS.canSubmit).be.true();
+        should(state.hasBeenModified).be.false();
+        should(state.canSubmit).be.true();
         done();
       });
       price.setValue(67);
@@ -125,13 +121,12 @@ describe('formo', function(){
       const price = formo.field('price');
       const label = formo.field('/data/label');
       formo.submitted.onValue( state => {
-        const stateJS = state.toJS();
         const res = formo.toDocument(state);
         should(res.price).be.eql(NaN);
         should(res.data.label).equal('redpelicans');
-        should(stateJS.price.error).be.a.String();
-        should(stateJS.hasBeenModified).be.true();
-        should(stateJS.canSubmit).be.false();
+        should(state.price.error).be.a.String();
+        should(state.hasBeenModified).be.true();
+        should(state.canSubmit).be.false();
         done();
       });
       label.setValue('redpelicans');

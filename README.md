@@ -57,8 +57,7 @@ We can now observe prices and render them:
 
 ```
 price.onValue( state => {
-  const priceState = state.toJS();
-  console.log(priceState.value);
+  console.log(state.value);
 })
 ```
 
@@ -125,7 +124,7 @@ A field has no value, it's a reactive structure, if you observe it, you can get 
   });
 ```
 
-* Field.onValue(function(fieldState))`: `fieldState` is an (Immutable](http://facebook.github.io/immutable-js) Map object with those keys:
+* Field.onValue(function(fieldState))`: `fieldState` is a Javascript object with those keys:
  * `value`: field value, even if validation failed, a new state with this value will be published.
  * `error`: error string if `value` validation failed. Each time a field receive a value and at initialisation, field will check its value (see `schema` above)
  * `isActivated`: boolean 
@@ -156,7 +155,7 @@ const formo = new Formo([
 
 const price = formo.field('price');
 price.state.onValue( state => {
-  console.log(state.toJS())
+  console.log(state)
 });
 
 price.newValueStream.plug(Kefir.sequentially(100, [undefined, 'toto', 40]));
@@ -256,7 +255,7 @@ const formo = new Formo([
 
 const price = formo.field('price');
 price.state.onValue( state => {
-  console.log(state.toJS().value)
+  console.log(state.value)
 });
 
 ```
@@ -288,7 +287,7 @@ We can `submit`, `cancel`, `reset`, `activate` a `formo` object thanks to those 
 ```
 const formo = new Formo([new Field('price', {defaultValue: 42})});
 formo.state.onValue( state => {
-  console.log(state.getIn(['price', 'value']));
+  console.log(state.price.value);
 });
 formo.field('price').setValue(44);
 formo.reset();
@@ -331,9 +330,9 @@ A `Formo` object is an observable. Returned `state` is an agregation of all chil
 const formo = new Formo([new MultiField('bike', [new Field('price')])]);
 const [bike, price] = [formo.field('bike'), formo.field('/bike/price')];
 
-formo.state.onValue(state => console.log(state.toJS().bike.price.value));
-bike.state.onValue(state => console.log(state.toJS().price.value));
-price.state.onValue(state => console.log(state.toJS().value));
+formo.state.onValue(state => console.log(state.bike.price.value));
+bike.state.onValue(state => console.log(state.price.value));
+price.state.onValue(state => console.log(state.value));
 
 price.setValue(142);
 ```
@@ -359,7 +358,7 @@ const formo = new Formo([
   ]);
 const [bike, price] = [formo.field('bike'), formo.field('/bike/price')];
 
-bike.state.onValue(state => console.log(state.toJS()));
+bike.state.onValue(state => console.log(state));
 price.setValue(142);
 ```
 

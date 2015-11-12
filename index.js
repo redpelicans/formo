@@ -1,7 +1,5 @@
 'use strict';
 
-var _slicedToArray = (function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"]) _i["return"](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }; })();
-
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
 
 Object.defineProperty(exports, "__esModule", {
@@ -129,7 +127,7 @@ var AbstractMultiField = (function () {
       };
 
       _lodash2.default.each(fields, function (field) {
-        commands.plug(field.state.map(function (state) {
+        commands.plug(field.immutableState.map(function (state) {
           return mergeChildrenState(field, state);
         }));
       });
@@ -157,7 +155,10 @@ var AbstractMultiField = (function () {
       _lodash2.default.each(this.fields, function (field) {
         field.initState();
       });
-      this.state = this.combineStates();
+      this.immutableState = this.combineStates();
+      this.state = this.immutableState.map(function (state) {
+        return state.toJS();
+      });
     }
   }, {
     key: 'path',
@@ -194,13 +195,13 @@ var Formo = exports.Formo = (function (_AbstractMultiField) {
     _this3.initState();
 
     _this3.submitStream = _kefir2.default.pool();
-    _this3.submitted = _this3.state.sampledBy(_this3.submitStream, function (state, options) {
-      return state.set('submitOptions', options);
+    _this3.submitted = _this3.immutableState.sampledBy(_this3.submitStream, function (state, options) {
+      return state.set('submitOptions', options).toJS();
     });
 
     _this3.cancelStream = _kefir2.default.pool();
-    _this3.cancelled = _this3.state.sampledBy(_this3.cancelStream, function (state, options) {
-      return state.set('cancelOptions', options);
+    _this3.cancelled = _this3.immutableState.sampledBy(_this3.cancelStream, function (state, options) {
+      return state.set('cancelOptions', options).toJS();
     });
     return _this3;
   }
@@ -242,20 +243,28 @@ var Formo = exports.Formo = (function (_AbstractMultiField) {
         return d && d[p];
       }, this.document);
     }
+
+    // toDocument(state){
+    //   let res = {};
+    //   state.mapEntries(([name, subState]) => {
+    //     if(Immutable.Map.isMap(subState)){
+    //       if(subState.has('value')) res[name] = this.field(subState.get('path')).castedValue(subState.get('value'));
+    //       else res[name] = this.toDocument(subState);
+    //     }
+    //   });
+    //  return res;
+    // }
+    //
+
   }, {
     key: 'toDocument',
     value: function toDocument(state) {
       var _this4 = this;
 
       var res = {};
-      state.mapEntries(function (_ref) {
-        var _ref2 = _slicedToArray(_ref, 2);
-
-        var name = _ref2[0];
-        var subState = _ref2[1];
-
-        if (_immutable2.default.Map.isMap(subState)) {
-          if (subState.has('value')) res[name] = _this4.field(subState.get('path')).castedValue(subState.get('value'));else res[name] = _this4.toDocument(subState);
+      _lodash2.default.each(state, function (subState, name) {
+        if (_lodash2.default.isObject(subState)) {
+          if ('value' in subState && subState.path) res[name] = _this4.field(subState.path).castedValue(subState.value);else res[name] = _this4.toDocument(subState);
         }
       });
       return res;
@@ -392,9 +401,12 @@ var Field = exports.Field = (function () {
         }));
       }
 
-      this.state = commands.scan(function (state, command) {
+      this.immutableState = commands.scan(function (state, command) {
         return command(state);
       }, defaultState);
+      this.state = this.immutableState.map(function (state) {
+        return state.toJS();
+      });
     }
   }, {
     key: 'castedValue',

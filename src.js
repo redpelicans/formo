@@ -66,7 +66,7 @@ class AbstractMultiField{
     }
 
     _.each(fields, field => {
-      commands.plug(field.state.map( state => mergeChildrenState(field, state)));
+      commands.plug(field.immutableState.map( state => mergeChildrenState(field, state)));
     });
 
     if(this.markStream){
@@ -85,7 +85,8 @@ class AbstractMultiField{
     _.each(this.fields, field =>{
       field.initState();
     })
-    this.state = this.combineStates();
+    this.immutableState = this.combineStates();
+    this.state = this.immutableState.map( state => state.toJS() );
   }
 }
 
@@ -99,13 +100,13 @@ export class Formo extends AbstractMultiField{
     this.initState();
     
     this.submitStream = Kefir.pool();
-    this.submitted = this.state.sampledBy(this.submitStream, (state, options) => {
-      return state.set('submitOptions', options);
+    this.submitted = this.immutableState.sampledBy(this.submitStream, (state, options) => {
+      return state.set('submitOptions', options).toJS();
     });
 
     this.cancelStream = Kefir.pool();
-    this.cancelled = this.state.sampledBy(this.cancelStream, (state, options) => {
-      return state.set('cancelOptions', options);
+    this.cancelled = this.immutableState.sampledBy(this.cancelStream, (state, options) => {
+      return state.set('cancelOptions', options).toJS();
     });
   }
 
@@ -137,16 +138,28 @@ export class Formo extends AbstractMultiField{
     return _.inject(path.split('/').filter(x => x !== ''), function(d, p){return d && d[p]}, this.document);
   }
 
+  // toDocument(state){
+  //   let res = {};
+  //   state.mapEntries(([name, subState]) => {
+  //     if(Immutable.Map.isMap(subState)){
+  //       if(subState.has('value')) res[name] = this.field(subState.get('path')).castedValue(subState.get('value'));
+  //       else res[name] = this.toDocument(subState);
+  //     }
+  //   }); 
+  //  return res;
+  // }
+  //
   toDocument(state){
     let res = {};
-    state.mapEntries(([name, subState]) => {
-      if(Immutable.Map.isMap(subState)){
-        if(subState.has('value')) res[name] = this.field(subState.get('path')).castedValue(subState.get('value'));
+    _.each(state, (subState, name) => {
+      if(_.isObject(subState)){
+        if('value' in subState && subState.path) res[name] = this.field(subState.path).castedValue(subState.value);
         else res[name] = this.toDocument(subState);
       }
     }); 
    return res;
   }
+
 }
 
 export class MultiField extends AbstractMultiField{
@@ -257,7 +270,8 @@ export class Field{
         commands.plug(stream.map(value => checkedValueCommand(value)));
     }
 
-    this.state = commands.scan( (state, command) => command(state), defaultState);
+    this.immutableState = commands.scan( (state, command) => command(state), defaultState);
+    this.state = this.immutableState.map( state => state.toJS() );
   }
 
 
