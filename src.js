@@ -306,7 +306,7 @@ export class Field{
       case 'boolean':
         return Boolean(value);
       case 'text':
-        if(value === '')return;
+        if(value === '' || !value)return;
         return value.trim ? value.trim() : value;
       default: 
         return value;
