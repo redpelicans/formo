@@ -324,7 +324,7 @@ export class Field{
   }
 
   checkDomain(value){
-    return _.isFunction(this.domainValue) ? this.domainValue(value) : _.contains(this.domainValue, value);
+    return _.contains(_.map(this.domainValue, ({key, value}) => key), value);
   }
 
   checkError(value){
@@ -336,7 +336,12 @@ export class Field{
   }
 
   get domainValue(){
-    return this.schema.domainValue;
+    if(!this.schema.domainValue) return;
+
+    const domainValue = this.schema.domainValue
+    const first = domainValue[0];
+
+    return _.isObject(first) && 'key' in first ? domainValue : _.map(domainValue, v => { return {key: v, value: v} });
   }
 
   get defaultValue(){

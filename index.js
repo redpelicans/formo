@@ -484,7 +484,11 @@ var Field = exports.Field = (function () {
   }, {
     key: 'checkDomain',
     value: function checkDomain(value) {
-      return _lodash2.default.isFunction(this.domainValue) ? this.domainValue(value) : _lodash2.default.contains(this.domainValue, value);
+      return _lodash2.default.contains(_lodash2.default.map(this.domainValue, function (_ref) {
+        var key = _ref.key;
+        var value = _ref.value;
+        return key;
+      }), value);
     }
   }, {
     key: 'checkError',
@@ -562,7 +566,14 @@ var Field = exports.Field = (function () {
   }, {
     key: 'domainValue',
     get: function get() {
-      return this.schema.domainValue;
+      if (!this.schema.domainValue) return;
+
+      var domainValue = this.schema.domainValue;
+      var first = domainValue[0];
+
+      return _lodash2.default.isObject(first) && 'key' in first ? domainValue : _lodash2.default.map(domainValue, function (v) {
+        return { key: v, value: v };
+      });
     }
   }, {
     key: 'defaultValue',

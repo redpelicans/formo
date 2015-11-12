@@ -96,7 +96,7 @@ A field is defined by a `schema` and a `name`:
   * `required`: field is required
   * `pattern`: regext that `field.value` should match, if present will override `type`.
   * `defaultValue`: default value at initialisation and after a `reset` of the field.
-  * `domainValue`: `Array` containing all possible values or `function` that take a value and returns `true` if value belongs to domain, if present will override `type` and `pattern`.
+  * `domainValue`: `Array` containing all values or key/value object. If present will override `type` and `pattern`.
   * `valueChecker`: Object, if present, will override `type`, `pattern` and `domainValue`
     * `checker`: `function` that returns a `Promise` that should be resolved as `true` if value is correct
     * `debounce`: will call `checker` only milliseconds after last value received
