@@ -29,11 +29,12 @@ I was working on a reactive app and had to craft htlm forms. Because it was very
 
 As usual: `$ npm install formo`
 
-### How to use
+### How to use it
 
-A `Formo` object is mainly a tree made of reactive `Fields` associated with their own schema validation. We can observe field states and publish values to them.
+A `Formo` object is mainly a reactive data structure, made of `Fields` associated with their own schema. We can push events and values to fields observe them.
 
-#### Let's use our first schema:
+#### Let's use our first schema
+
 
 ```
 import {Field, Formo} from 'formo';
@@ -100,6 +101,8 @@ A field is defined by a `schema` and a `name`:
   * `valueChecker`: Object, if present, will override `type`, `pattern` and `domainValue`
     * `checker`: `function` that returns a `Promise` that should be resolved as `true` if value is correct
     * `debounce`: will call `checker` only milliseconds after last value received
+
+All above schema's attributes are directly accessible from a field. If you add extra attributes, you can access them via `field.schema.<attribute>`.
 
 
 A field exports 3 `Kefir` streams as inputs:
