@@ -1,28 +1,22 @@
 ## Formo [![Build Status](https://travis-ci.org/redpelicans/formo.png)](https://travis-ci.org/redpelicans/formo)
 
+A reactive helper and validator library for html forms.  
+Check out the online [React demo](http://redpelicans.github.io/formo-react-sample/).
 
-A reactive helper and validator library for html forms
+### Why formo, why another form library?
 
-See online React [Demo](http://redpelicans.github.io/formo-react-sample/)
+While working on a reactive app, I had to craft html forms. Finding a library able to correctly cover the event dimension of the problem was very difficult, so I decided to create a new one: **formo**.
 
-### Why formo, why another form library ?
+### What formo is not.
 
-I was working on a reactive app and had to craft htlm forms. Because it was very difficult to find a library able to correctly cover the event dimension of the problem, I decided to create one. Here is formo ...
+* it's not a form builder: formo is completely independent of the view layer. Since it's very first use is within a React app, you'll find many examples of React elements binding. 
+* it's not a full validation library: formo relies on its own validation code, it may be better to use an external lirary in the future.
 
-### What is not formo
+### What is formo?
 
-* it's not a form builder: formo is completely independent of the view layer. But it's first use is wihin a React app, so you can find many examples of react elements binding. 
-
-* it's not a full validation library: formo uses its own validation code, may be in the furure it should be better to use an external lirary
-
-### What is formo
-
-* it's a fully reactive library, built on top of [Kefir](https://rpominov.github.io/kefir). it can be managed by pluging into streams or by sending imperative calls. it should be enought flexible to express complex form's behaviour.
-
-* it uses schema validation (type, pattern, doman value, required field), but keep validation and schema management isolated from rendering
-
-* it offers to define multi levels schema and to bind html form elements to any level of the schema 
-
+* it's a fully reactive library, built on top of [Kefir](https://rpominov.github.io/kefir). It can be managed through streams or with imperative calls. It should be flexible enough to express complex form's behaviour.
+* it uses schema validation (type, pattern, domain value, required field) but keep validation and schema management isolated from rendering
+* it provides multi-levels schema definition and html form elements bindings at any level of the schema
 * it can submit field's values to remote validations
 
 ### How to install formo
@@ -31,14 +25,12 @@ As usual: `$ npm install formo`
 
 ### How to use it
 
-A `Formo` object is mainly a reactive data structure, made of `Fields` associated with their own schema. We can push events and values to fields observe them.
+A `Formo` object is mainly a reactive data structure, made of `Fields` associated with their own schema.  
+We can push events and values to fields observe them.
 
-#### Let's use our first schema
-
-
+**Let's define our first schema:**
 ```
 import {Field, Formo} from 'formo';
-
 const formo = new Formo([
   new Field('price', {
     label: 'Amount',
@@ -48,56 +40,50 @@ const formo = new Formo([
 ])
 ```
 
-We would like to manipulate prices:
-
+**We want to manipulate prices:**
 ```
 const price = formo.field('price');
 ```
 
-We can now observe prices and render them:
-
+**We are now able to observe prices and render them:**
 ```
-price.onValue( state => {
+price.onValue(state => {
   console.log(state.value);
-})
+});
 ```
 
-Let's set multipe prices:
-
+**Let's set multiple prices:**
 ```
 price.setValue(42);
 price.setValue(42.5);
 price.setValue(43);
 ```
 
-Even better, `formo` use [Kefir](https://rpominov.github.io/kefir), so we can do:
-
+**Or even better, `formo` use [Kefir](https://rpominov.github.io/kefir), so we can do:**
 ```
 import Kefir from 'kefir';
 price.newValueStream.plug(Kefir.sequentially(10, [42, 42.5, 43]));
 ```
 
-Will output: `40 42 42.5 43`
+> Will output: `40 42 42.5 43`
 
-Not very useful yet, so continue, try to read the API ...
+So far, nothing very usefyl... yet.
+Read the API to really see the awesomeness of form!
 
 ### API
 
 #### Field
 
-A field is defined by a `schema` and a `name`:
-
-`new Field(name, schema)`
-
-* `name`: key to identify the field within a `formo` object. Later is a tree, so `name` should be a uniq for each tree's levels.
-* `schema`: JS object:
-  * `label`: used by client's library to display element name, it's a free attribute ot used yet by `formo`.
-  * `type`: following types are managed ['text', 'number', 'interger', 'boolean'].
+A field is defined by a `schema` and a `name`: `new Field(name, schema)`
+* `name` _String_: key to identify the field within a `formo` object. A `formo` object is a tree, so `name` have to be a uniq for each levels of the tree
+* `schema` _Object_:
+  * `label`: used by client's library to display element name, it's a free attribute not used yet by `formo`
+  * `type`: following types are managed ['text', 'number', 'interger', 'boolean']
   * `required`: field is required
-  * `pattern`: regext that `field.value` should match, if present will override `type`.
-  * `defaultValue`: default value at initialisation and after a `reset` of the field.
-  * `domainValue`: `Array` containing all values or key/value object. If present will override `type` and `pattern`.
-  * `checkDomainValue`: boolean whether or not to check field's value within it's domain value.
+  * `pattern`: regext that `field.value` should match, if present will override `type`
+  * `defaultValue`: default value at initialisation and after a `reset` of the field
+  * `domainValue`: `Array` containing all values or key/value object. If present will override `type` and `pattern`
+  * `checkDomainValue`: boolean whether or not to check field's value within it's domain value
   * `valueChecker`: Object, if present, will override `type`, `pattern` and `domainValue`. Default: false
     * `checker`: `function` that returns a `Promise` that should be resolved as `true` if value is correct
     * `debounce`: will call `checker` only milliseconds after last value received
