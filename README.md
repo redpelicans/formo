@@ -85,7 +85,7 @@ A field is defined by a `schema` and a `name`: `new Field(name, schema)`
   * `domainValue`: `Array` containing all values or key/value object. If present will override `type` and `pattern`
   * `checkDomainValue`: boolean whether or not to check field's value within it's domain value
   * `valueChecker`: Object, if present, will override `type`, `pattern` and `domainValue`. Default: false
-    * `checker`: `function` that returns a `Promise` that should be resolved as `true` if value is correct
+    * `checker`: `function` that takes a value and current document if exists and returns a `Promise` that should be resolved as `true` if value is correct
     * `debounce`: will call `checker` only milliseconds after last value received
 
 All above schema's attributes are directly accessible from a field. If you add extra attributes, you can access them via `field.schema.<attribute>`.
