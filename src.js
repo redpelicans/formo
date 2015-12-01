@@ -2,7 +2,7 @@ import _ from 'lodash';
 import Kefir from 'kefir';
 import Immutable from 'immutable';
 
-class AbstractMultiField{
+class AbstractFieldGroup{
   constructor(fields, name){
     this.key = name;
     this.fields = {};
@@ -11,6 +11,10 @@ class AbstractMultiField{
 
   reset(){
     _.each(this.fields, field => field.reset());
+  }
+
+  disabled(value){
+    _.each(this.fields, field => field.disabled(value));
   }
 
   hasBeenModified(state){
@@ -96,7 +100,7 @@ class AbstractMultiField{
 
 }
 
-export class Formo extends AbstractMultiField{
+export class Formo extends AbstractFieldGroup{
   constructor(fields=[], document){
     super(fields);
     this.propagateParent();
@@ -156,16 +160,6 @@ export class Formo extends AbstractMultiField{
     return _.inject(path.split('/').filter(x => x !== ''), function(d, p){return d && d[p]}, this.document);
   }
 
-  // toDocument(state){
-  //   let res = {};
-  //   state.mapEntries(([name, subState]) => {
-  //     if(Immutable.Map.isMap(subState)){
-  //       if(subState.has('value')) res[name] = this.field(subState.get('path')).castedValue(subState.get('value'));
-  //       else res[name] = this.toDocument(subState);
-  //     }
-  //   }); 
-  //  return res;
-  // }
  
   toDocument(state){
     let res = {};
@@ -180,7 +174,7 @@ export class Formo extends AbstractMultiField{
 
 }
 
-export class MultiField extends AbstractMultiField{
+export class FieldGroup extends AbstractFieldGroup{
   constructor(name, fields){
     super(fields, name);
   }
@@ -201,10 +195,13 @@ export class Field{
       , error: this.checkError(defaultValue)
       , canSubmit: !this.checkError(defaultValue)
       , isLoading: 0
+      , disabled: false
       , hasBeenModified: false
     });
 
     this.newValueStream = Kefir.pool();
+    this.refreshStream = Kefir.pool();
+    this.disabledStream = Kefir.pool();
     this.resetStream = Kefir.pool();
 
     const commands = Kefir.pool();
@@ -256,11 +253,7 @@ export class Field{
       }
     }
 
-    const resetCommand = () => {
-      return (state) => {
-        return defaultState;
-      }
-    }
+    const resetCommand = () => () => defaultState;
 
     const isLoadingCommand = () => {
       return (state) => {
@@ -268,8 +261,14 @@ export class Field{
       }
     }
 
+    const disabledCommand = (value) => {
+      return (state) => {
+        return state.update('disabled', x => value);
+      }
+    }
 
     commands.plug(this.newValueStream.map(value => newValueCommand(value)));
+    commands.plug(this.disabledStream.map(value => disabledCommand(value)));
     commands.plug(this.resetStream.map(value => resetCommand()));
 
 
@@ -279,7 +278,7 @@ export class Field{
         .debounce(this.schema.valueChecker.debounce || 10)
         .flatMap( value => {
           commands.plug(Kefir.constant(isLoadingCommand()));
-          const ajaxRequest = Kefir.fromPromise(this.schema.valueChecker.checker(value));
+          const ajaxRequest = Kefir.fromPromise(this.schema.valueChecker.checker(value, this.root.document));
           return Kefir.constant(value).combine(ajaxRequest, (value, res) => {
               if(!res.checked) return { error: res.error || 'Wrong Input!', value: value }
               return {value: value, error: undefined};
@@ -289,6 +288,8 @@ export class Field{
     }
 
     this.state = commands.scan( (state, command) => command(state), defaultState);
+
+    this.newValueStream.plug(this.state.sampledBy(this.refreshStream, state => state.get('value')));
   }
 
   onValue(cb){
@@ -296,7 +297,6 @@ export class Field{
     this.state.onValue(fct = state =>  cb(state.toJS()) );
     return () => this.state.offValue(fct);
   }
-
 
   castedValue(value){
     switch(this.type){
@@ -318,9 +318,26 @@ export class Field{
   }
 
   checkValue(value){
-    if(this.isNull(value)) return !this.isRequired();
-    if(this.domainValue && this.checkDomainValue) return this.checkDomain(value);
-    return this.checkPattern(value);
+    const _checkValue = (v) => {
+      if(this.isNull(v)) return !this.isRequired();
+      if(this.domainValue && this.checkDomainValue) return this.checkDomain(v);
+      return this.checkPattern(v);
+    }
+
+    if(this.isMultiValued()){
+      if(!value) return _checkValue();
+      if(!value.toJS) return false;
+      const v = value.toJS();
+      if(!_.isArray(v)) return false;
+      if(!v.length) return _checkValue();
+      return _.all(v , x =>  _checkValue(x));
+    }else{
+      return _checkValue(value);
+    }
+  }
+
+  isMultiValued(){
+    return this.schema.multiValue;
   }
 
   checkDomain(value){
@@ -332,11 +349,11 @@ export class Field{
   }
 
   checkPattern(value){
-    return String(value).match(this.getPattern());
+    return !!String(value).match(this.getPattern());
   }
 
   get checkDomainValue(){
-    return this.schema.checkDomainValue;
+    return 'checkDomainValue' in this.schema ? this.schema.checkDomainValue : true;
   }
 
   get domainValue(){
@@ -413,11 +430,19 @@ export class Field{
   }
 
   setValue(value){
-    this.newValueStream.plug(Kefir.constant(value));
+    this.newValueStream.plug(Kefir.constant(Immutable.fromJS(value)));
+  }
+
+  refresh(){
+    this.refreshStream.plug(Kefir.constant(true));
   }
 
   reset(){
     this.resetStream.plug(Kefir.constant(true));
+  }
+
+  disabled(value){
+    this.disabledStream.plug(Kefir.constant(!!value));
   }
 
   isRequired(){

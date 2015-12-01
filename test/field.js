@@ -384,7 +384,6 @@ describe('fields', function(){
     it('should match domain value', (done) => {
       const formo = new Formo([new Field('price', { 
         label: 'Price', 
-        checkDomainValue: true,
         domainValue: [1, 42],
       })]);
 
@@ -427,7 +426,6 @@ describe('fields', function(){
       const formo = new Formo([new Field('price', { 
         label: 'Price', 
         type: 'integer',
-        checkDomainValue: true,
         domainValue: [
           {key: 1, value: 1}, 
           {key: 42, value: 42}
@@ -453,7 +451,6 @@ describe('fields', function(){
       const formo = new Formo([new Field('price', { 
         label: 'Price', 
         defaultValue: 1,
-        checkDomainValue: true,
         domainValue: [1, 2],
       })]);
 
@@ -472,7 +469,7 @@ describe('fields', function(){
   });
 
   describe('dynamic domain value', () => {
-    it('should no match domain value', (done) => {
+    it('should not match domain value', (done) => {
       const formo = new Formo([new Field('price')]);
       const field = formo.field('price');
       field.state.skip(1).onValue( s => {

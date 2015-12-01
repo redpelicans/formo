@@ -1,4 +1,4 @@
-import {Field, Formo, MultiField} from '../';
+import {Field, Formo, FieldGroup} from '../';
 import should from 'should';
 import _ from 'lodash';
 
@@ -18,7 +18,7 @@ function f(document){
       type: 'number',
       defaultValue: 11,
     }),
-    new MultiField( 'data', [
+    new FieldGroup( 'data', [
       new Field('label',{
         label: 'Label',
         type: 'text',

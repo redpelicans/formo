@@ -5,7 +5,7 @@ var _createClass = (function () { function defineProperties(target, props) { for
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.Field = exports.MultiField = exports.Formo = undefined;
+exports.Field = exports.FieldGroup = exports.Formo = undefined;
 
 var _lodash = require('lodash');
 
@@ -27,20 +27,27 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-var AbstractMultiField = (function () {
-  function AbstractMultiField(fields, name) {
-    _classCallCheck(this, AbstractMultiField);
+var AbstractFieldGroup = (function () {
+  function AbstractFieldGroup(fields, name) {
+    _classCallCheck(this, AbstractFieldGroup);
 
     this.key = name;
     this.fields = {};
     this.initFields(fields);
   }
 
-  _createClass(AbstractMultiField, [{
+  _createClass(AbstractFieldGroup, [{
     key: 'reset',
     value: function reset() {
       _lodash2.default.each(this.fields, function (field) {
         return field.reset();
+      });
+    }
+  }, {
+    key: 'disabled',
+    value: function disabled(value) {
+      _lodash2.default.each(this.fields, function (field) {
+        return field.disabled(value);
       });
     }
   }, {
@@ -184,11 +191,11 @@ var AbstractMultiField = (function () {
     }
   }]);
 
-  return AbstractMultiField;
+  return AbstractFieldGroup;
 })();
 
-var Formo = exports.Formo = (function (_AbstractMultiField) {
-  _inherits(Formo, _AbstractMultiField);
+var Formo = exports.Formo = (function (_AbstractFieldGroup) {
+  _inherits(Formo, _AbstractFieldGroup);
 
   function Formo() {
     var fields = arguments.length <= 0 || arguments[0] === undefined ? [] : arguments[0];
@@ -307,19 +314,19 @@ var Formo = exports.Formo = (function (_AbstractMultiField) {
   }]);
 
   return Formo;
-})(AbstractMultiField);
+})(AbstractFieldGroup);
 
-var MultiField = exports.MultiField = (function (_AbstractMultiField2) {
-  _inherits(MultiField, _AbstractMultiField2);
+var FieldGroup = exports.FieldGroup = (function (_AbstractFieldGroup2) {
+  _inherits(FieldGroup, _AbstractFieldGroup2);
 
-  function MultiField(name, fields) {
-    _classCallCheck(this, MultiField);
+  function FieldGroup(name, fields) {
+    _classCallCheck(this, FieldGroup);
 
-    return _possibleConstructorReturn(this, Object.getPrototypeOf(MultiField).call(this, fields, name));
+    return _possibleConstructorReturn(this, Object.getPrototypeOf(FieldGroup).call(this, fields, name));
   }
 
-  return MultiField;
-})(AbstractMultiField);
+  return FieldGroup;
+})(AbstractFieldGroup);
 
 var Field = exports.Field = (function () {
   function Field(name) {
@@ -344,10 +351,13 @@ var Field = exports.Field = (function () {
         error: this.checkError(defaultValue),
         canSubmit: !this.checkError(defaultValue),
         isLoading: 0,
+        disabled: false,
         hasBeenModified: false
       });
 
       this.newValueStream = _kefir2.default.pool();
+      this.refreshStream = _kefir2.default.pool();
+      this.disabledStream = _kefir2.default.pool();
       this.resetStream = _kefir2.default.pool();
 
       var commands = _kefir2.default.pool();
@@ -400,7 +410,7 @@ var Field = exports.Field = (function () {
       };
 
       var resetCommand = function resetCommand() {
-        return function (state) {
+        return function () {
           return defaultState;
         };
       };
@@ -413,8 +423,19 @@ var Field = exports.Field = (function () {
         };
       };
 
+      var disabledCommand = function disabledCommand(value) {
+        return function (state) {
+          return state.update('disabled', function (x) {
+            return value;
+          });
+        };
+      };
+
       commands.plug(this.newValueStream.map(function (value) {
         return newValueCommand(value);
+      }));
+      commands.plug(this.disabledStream.map(function (value) {
+        return disabledCommand(value);
       }));
       commands.plug(this.resetStream.map(function (value) {
         return resetCommand();
@@ -425,7 +446,7 @@ var Field = exports.Field = (function () {
           return !(_this9.isRequired() && _this9.isNull(value));
         }).debounce(this.schema.valueChecker.debounce || 10).flatMap(function (value) {
           commands.plug(_kefir2.default.constant(isLoadingCommand()));
-          var ajaxRequest = _kefir2.default.fromPromise(_this9.schema.valueChecker.checker(value));
+          var ajaxRequest = _kefir2.default.fromPromise(_this9.schema.valueChecker.checker(value, _this9.root.document));
           return _kefir2.default.constant(value).combine(ajaxRequest, function (value, res) {
             if (!res.checked) return { error: res.error || 'Wrong Input!', value: value };
             return { value: value, error: undefined };
@@ -439,6 +460,10 @@ var Field = exports.Field = (function () {
       this.state = commands.scan(function (state, command) {
         return command(state);
       }, defaultState);
+
+      this.newValueStream.plug(this.state.sampledBy(this.refreshStream, function (state) {
+        return state.get('value');
+      }));
     }
   }, {
     key: 'onValue',
@@ -477,9 +502,31 @@ var Field = exports.Field = (function () {
   }, {
     key: 'checkValue',
     value: function checkValue(value) {
-      if (this.isNull(value)) return !this.isRequired();
-      if (this.domainValue && this.checkDomainValue) return this.checkDomain(value);
-      return this.checkPattern(value);
+      var _this11 = this;
+
+      var _checkValue = function _checkValue(v) {
+        if (_this11.isNull(v)) return !_this11.isRequired();
+        if (_this11.domainValue && _this11.checkDomainValue) return _this11.checkDomain(v);
+        return _this11.checkPattern(v);
+      };
+
+      if (this.isMultiValued()) {
+        if (!value) return _checkValue();
+        if (!value.toJS) return false;
+        var v = value.toJS();
+        if (!_lodash2.default.isArray(v)) return false;
+        if (!v.length) return _checkValue();
+        return _lodash2.default.all(v, function (x) {
+          return _checkValue(x);
+        });
+      } else {
+        return _checkValue(value);
+      }
+    }
+  }, {
+    key: 'isMultiValued',
+    value: function isMultiValued() {
+      return this.schema.multiValue;
     }
   }, {
     key: 'checkDomain',
@@ -498,7 +545,7 @@ var Field = exports.Field = (function () {
   }, {
     key: 'checkPattern',
     value: function checkPattern(value) {
-      return String(value).match(this.getPattern());
+      return !!String(value).match(this.getPattern());
     }
   }, {
     key: 'getError',
@@ -551,12 +598,22 @@ var Field = exports.Field = (function () {
   }, {
     key: 'setValue',
     value: function setValue(value) {
-      this.newValueStream.plug(_kefir2.default.constant(value));
+      this.newValueStream.plug(_kefir2.default.constant(_immutable2.default.fromJS(value)));
+    }
+  }, {
+    key: 'refresh',
+    value: function refresh() {
+      this.refreshStream.plug(_kefir2.default.constant(true));
     }
   }, {
     key: 'reset',
     value: function reset() {
       this.resetStream.plug(_kefir2.default.constant(true));
+    }
+  }, {
+    key: 'disabled',
+    value: function disabled(value) {
+      this.disabledStream.plug(_kefir2.default.constant(!!value));
     }
   }, {
     key: 'isRequired',
@@ -566,7 +623,7 @@ var Field = exports.Field = (function () {
   }, {
     key: 'checkDomainValue',
     get: function get() {
-      return this.schema.checkDomainValue;
+      return 'checkDomainValue' in this.schema ? this.schema.checkDomainValue : true;
     }
   }, {
     key: 'domainValue',
