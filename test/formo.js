@@ -86,8 +86,7 @@ describe('formo', function(){
       const formo = f();
       const price = formo.field('price');
       const label = formo.field('/data/label');
-      formo.onSubmit( state => {
-        const res = formo.toDocument(state);
+      formo.onSubmit( (state, res) => {
         should(res.price).equal(67);
         should(res.data.label).equal('redpelicans');
         done();
@@ -103,8 +102,7 @@ describe('formo', function(){
       const formo = f({price: 77, data: {label: 'ici'}});
       const price = formo.field('price');
       const label = formo.field('/data/label');
-      formo.onSubmit( state => {
-        const res = formo.toDocument(state);
+      formo.onSubmit( (state, res) => {
         should(res.price).equal(77);
         should(res.data.label).equal('ici');
         should(state.hasBeenModified).be.false();
@@ -121,8 +119,7 @@ describe('formo', function(){
       const formo = f({price: 'camembert', data: {label: 'ici'}});
       const price = formo.field('price');
       const label = formo.field('/data/label');
-      formo.onSubmit( state => {
-        const res = formo.toDocument(state);
+      formo.onSubmit( (state, res) => {
         should(res.price).be.eql(NaN);
         should(res.data.label).equal('redpelicans');
         should(state.price.error).be.a.String();

@@ -133,7 +133,7 @@ export class Formo extends AbstractFieldGroup{
 
   onSubmit(cb){
     let fct;
-    this.submitted.onValue(fct = state => cb(state.toJS()) );
+    this.submitted.onValue(fct = state => cb(state.toJS(), this.toDocument(state)) );
     return () => this.submitted.offValue(fct);
   }
 
@@ -160,15 +160,14 @@ export class Formo extends AbstractFieldGroup{
     return _.inject(path.split('/').filter(x => x !== ''), function(d, p){return d && d[p]}, this.document);
   }
 
- 
-  toDocument(state){
+   toDocument(state){
     let res = {};
-    _.each(state, (subState, name) => {
-      if(_.isObject(subState)){
-        if('value' in subState && subState.path) res[name] = this.field(subState.path).castedValue(subState.value);
+    for(let [name, subState] of state.entries()){
+      if(Immutable.Map.isMap(subState)){
+        if(subState.has('value')) res[name] = castedValue(subState, subState.get('value'));
         else res[name] = this.toDocument(subState);
       }
-    }); 
+    } 
    return res;
   }
 
@@ -189,18 +188,26 @@ export class Field{
   initState(){
     const defaultValue = this.defaultValue;
 
-    const defaultState = Immutable.Map({
+    let defaultState = Immutable.fromJS({
         value: defaultValue
       , path: this.path
-      , error: this.checkError(defaultValue)
-      , canSubmit: !this.checkError(defaultValue)
       , isLoading: 0
       , disabled: false
       , hasBeenModified: false
+      , type: this.schema.type
+      , required: !!this.schema.required
+      , pattern: this.schema.pattern
+      , domainValue: this.schema.domainValue
+      , multiValue: !!this.schema.multiValue
+      , checkDomainValue: this.checkDomainValue
     });
+
+    defaultState = defaultState.set('error', checkError(defaultState, defaultValue)); 
+    defaultState = defaultState.set('canSubmit', !defaultState.get('error'));
 
     this.newValueStream = Kefir.pool();
     this.refreshStream = Kefir.pool();
+    this.newSchemaValueStream = Kefir.pool();
     this.disabledStream = Kefir.pool();
     this.resetStream = Kefir.pool();
 
@@ -214,40 +221,50 @@ export class Field{
           return state.merge({
             isLoading: isLoading,
             canSubmit: !(isLoading || data.error),
-            hasBeenModified: this.hasBeenModified(state.get('value')),
+            hasBeenModified: this.hasBeenModified(state, state.get('value')),
           });
         }
         return state.merge({
           error: data.error,
           isLoading: isLoading,
           canSubmit: !(isLoading || data.error),
-          hasBeenModified: this.hasBeenModified(state.get('value')),
+          hasBeenModified: this.hasBeenModified(state, state.get('value')),
         });
+      }
+    }
+
+    const newSchemaValueCommand = ({key, value}) => {
+      return (state) => {
+        const data = state.set(key, Immutable.fromJS(value));
+        return data.merge({
+          error: getError(data, data.get('value')),
+          canSubmit: !(data.get('isLoading') || getError(data, data.get('value'))),
+        })
       }
     }
 
     const newValueCommand = (value) => {
       return (state) => {
-        if(this.schema.valueChecker && !( this.isNull(value) && this.isRequired() )){
+        if(this.schema.valueChecker && !( isNull(value) && isRequired(state) )){
           return state.merge({
             value: value, 
             canSubmit: false,
             error: undefined,
-            hasBeenModified: this.hasBeenModified(value),
+            hasBeenModified: this.hasBeenModified(state, value),
           });
         }
-        if(!this.checkValue(value)){
+        if(!checkValue(state, value)){
           return state.merge({
             value: value, 
-            error: this.getError(value),
-            hasBeenModified: this.hasBeenModified(value),
+            error: getError(state, value),
+            hasBeenModified: this.hasBeenModified(state, value),
             canSubmit: false,
           });
         }
         return state.merge({
           value: value, 
           error: undefined,
-          hasBeenModified: this.hasBeenModified(value),
+          hasBeenModified: this.hasBeenModified(state, value),
           canSubmit: !state.get('isLoading'),
         });
       }
@@ -268,17 +285,19 @@ export class Field{
     }
 
     commands.plug(this.newValueStream.map(value => newValueCommand(value)));
+    commands.plug(this.newSchemaValueStream.map( obj => newSchemaValueCommand(obj)));
     commands.plug(this.disabledStream.map(value => disabledCommand(value)));
     commands.plug(this.resetStream.map(value => resetCommand()));
 
+    this.state = commands.scan( (state, command) => command(state), defaultState);
 
     if(this.schema.valueChecker){
-      const stream = this.newValueStream
-        .filter(value => !(this.isRequired() && this.isNull(value)))
+      let stream = this.state.sampledBy(this.newValueStream, (state, value) => [state, value])
+        .filter( ([state, value]) => !(isRequired(state) && isNull(value)))
         .debounce(this.schema.valueChecker.debounce || 10)
-        .flatMap( value => {
+        .flatMap( ([state, value]) => {
           commands.plug(Kefir.constant(isLoadingCommand()));
-          const ajaxRequest = Kefir.fromPromise(this.schema.valueChecker.checker(value, this.root.document));
+          const ajaxRequest = Kefir.fromPromise(this.schema.valueChecker.checker(value, this.root.document, state));
           return Kefir.constant(value).combine(ajaxRequest, (value, res) => {
               if(!res.checked) return { error: res.error || 'Wrong Input!', value: value }
               return {value: value, error: undefined};
@@ -287,7 +306,6 @@ export class Field{
         commands.plug(stream.map(value => checkedValueCommand(value)));
     }
 
-    this.state = commands.scan( (state, command) => command(state), defaultState);
 
     this.newValueStream.plug(this.state.sampledBy(this.refreshStream, state => state.get('value')));
   }
@@ -298,75 +316,16 @@ export class Field{
     return () => this.state.offValue(fct);
   }
 
-  castedValue(value){
-    switch(this.type){
-      case 'number':
-      case 'integer':
-        return Number(value);
-      case 'boolean':
-        return Boolean(value);
-      case 'text':
-        if(value === '' || !value)return;
-        return value.trim ? value.trim() : value;
-      default: 
-        return value;
-    }
-  }
-
-  hasBeenModified(value){
-    return this.castedValue(value) !== this.defaultValue;
-  }
-
-  checkValue(value){
-    const _checkValue = (v) => {
-      if(this.isNull(v)) return !this.isRequired();
-      if(this.domainValue && this.checkDomainValue) return this.checkDomain(v);
-      return this.checkPattern(v);
-    }
-
-    if(this.isMultiValued()){
-      if(!value) return _checkValue();
-      if(!value.toJS) return false;
-      const v = value.toJS();
-      if(!_.isArray(v)) return false;
-      if(!v.length) return _checkValue();
-      return _.all(v , x =>  _checkValue(x));
-    }else{
-      return _checkValue(value);
-    }
-  }
-
-  isMultiValued(){
-    return this.schema.multiValue;
-  }
-
-  checkDomain(value){
-    return _.contains(_.map(this.domainValue, ({key, value}) => key), value);
-  }
-
-  checkError(value){
-    if(!this.checkValue(value)) return this.getError(value);
-  }
-
-  checkPattern(value){
-    return !!String(value).match(this.getPattern());
-  }
-
   get checkDomainValue(){
     return 'checkDomainValue' in this.schema ? this.schema.checkDomainValue : true;
   }
 
-  get domainValue(){
-    if(!this.schema.domainValue) return;
-
-    const domainValue = this.schema.domainValue
-    const first = domainValue[0];
-
-    return _.isObject(first) && 'key' in first ? domainValue : _.map(domainValue, v => { return {key: v, value: v} });
-  }
-
   get defaultValue(){
     return this.root && this.root.getDocumentValue(this.path) || this.schema.defaultValue;
+  }
+
+  hasBeenModified(state, value){
+    return castedValue(state, value) !== this.defaultValue;
   }
 
   get label(){
@@ -389,21 +348,6 @@ export class Field{
     return this.schema.pattern;
   }
 
-  getError(value){
-    if(this.isNull(value) && this.isRequired()) return "Input required";
-    if(this.pattern) return "Value doesn't match pattern!"
-    if(this.domainValue) return "Value doesn't match domain value!"
-    switch(this.type){
-      case 'number':
-        return "Value is not a number!";
-      case 'integer':
-        return "Value is not an integer!";
-      case 'boolean':
-        return "Value is not an boolean!";
-    }
-    return "Wrong value!";
-  }
-
   htmlType(){
     switch(this.type){
       case 'number':
@@ -416,21 +360,12 @@ export class Field{
     }
   }
 
-  getPattern(){
-    return this.pattern || {
-        number: /^[0-9]*(\.[0-9]+)?$/
-      , integer: /^[0-9]+$/ 
-      , boolean: /true|false/ 
-      , text: /.*/ 
-    }[this.type];
-  }
-
-  isNull(value){
-    return _.isUndefined(value) || value === "";
-  }
-
   setValue(value){
     this.newValueStream.plug(Kefir.constant(Immutable.fromJS(value)));
+  }
+
+  setSchemaValue(key, value){
+    this.newSchemaValueStream.plug(Kefir.constant({key: key, value: value}));
   }
 
   refresh(){
@@ -444,9 +379,104 @@ export class Field{
   disabled(value){
     this.disabledStream.plug(Kefir.constant(!!value));
   }
+}
 
-  isRequired(){
-    return this.schema.required;
+function getPattern(state){
+  return state.get('pattern') || {
+      number: /^[0-9]*(\.[0-9]+)?$/
+    , integer: /^[0-9]+$/ 
+    , boolean: /true|false/ 
+    , text: /.*/ 
+  }[state.get('type')];
+}
+
+function checkPattern(state, value){
+  return !!String(value).match(getPattern(state));
+}
+
+function checkValue(state, value){
+  const _checkValue = (v) => {
+    if(isNull(v)) return !isRequired(state);
+    if( hasDomainValue(state) && mustCheckDomainValue(state) ) return checkDomain(state, v);
+    return checkPattern(state, v);
   }
 
+  if(isMultiValued(state)){
+    if(!value) return _checkValue();
+    if(!value.toJS) return false;
+    const v = value.toJS();
+    if(!_.isArray(v)) return false;
+    if(!v.length) return _checkValue();
+    return _.all(v , x =>  _checkValue(x));
+  }else{
+    return _checkValue(value);
+  }
 }
+
+function getDomainValue(state){
+  if(!hasDomainValue(state)) return;
+
+  const domainValue = state.get('domainValue').toJS();
+  const first = domainValue[0];
+  return _.isObject(first) && 'key' in first ? domainValue : _.map(domainValue, v => { return {key: v, value: v} });
+}
+
+function checkDomain(state, value){
+  return _.contains(_.map(getDomainValue(state), ({key, value}) => key), value);
+}
+
+function hasDomainValue(state){
+  return state.get('domainValue');
+}
+
+function mustCheckDomainValue(state){
+  return state.get('checkDomainValue');
+}
+
+function isMultiValued(state){
+  return state.get('multiValue');
+}
+
+function isRequired(state){
+  return state.get('required');
+}
+
+function isNull(value){
+  return _.isUndefined(value) || value === "";
+}
+
+function castedValue(state, value){
+  if(isMultiValued(state)) return value.toJS ? value.toJS() : [];
+  switch(state.get('type')){
+    case 'number':
+    case 'integer':
+      return Number(value);
+    case 'boolean':
+      return Boolean(value);
+    case 'text':
+      if(value === '' || !value)return;
+      return value.trim ? value.trim() : value;
+    default: 
+      return value;
+  }
+}
+
+function getError(state, value){
+  if(isNull(value) && isRequired(state)) return "Input required";
+  if(state.get('pattern')) return "Value doesn't match pattern!"
+  if(hasDomainValue(state)) return "Value doesn't match domain value!"
+  switch(state.get('type')){
+    case 'number':
+      return "Value is not a number!";
+    case 'integer':
+      return "Value is not an integer!";
+    case 'boolean':
+      return "Value is not an boolean!";
+  }
+  return "Wrong value!";
+}
+
+function checkError(state, value){
+  if(!checkValue(state, value)) return getError(state, value);
+}
+

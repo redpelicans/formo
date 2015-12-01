@@ -472,14 +472,26 @@ describe('fields', function(){
     it('should not match domain value', (done) => {
       const formo = new Formo([new Field('price')]);
       const field = formo.field('price');
-      field.state.skip(1).onValue( s => {
+      field.state.skip(2).onValue( s => {
         const res = s.toJS();
         should(res.value).equal(42);
         should(res.error).be.a.String();
         done();
       });
-      field.schema.domainValue = [4];
-      field.schema.checkDomainValue = true,
+      field.setSchemaValue('domainValue',  [4]);
+      field.setValue(42);
+    });
+
+    it('should match domain value', (done) => {
+      const formo = new Formo([new Field('price', {domainValue: [1]})]);
+      const field = formo.field('price');
+      field.state.skip(2).onValue( s => {
+        const res = s.toJS();
+        should(res.value).equal(42);
+        should(res.error).be.undefined();
+        done();
+      });
+      field.setSchemaValue('domainValue',  [42]);
       field.setValue(42);
     });
 
