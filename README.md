@@ -83,10 +83,11 @@ A field is defined by a `schema` and a `name`: `new Field(name, schema)`
   * `pattern`: regext that `field.value` should match, if present will override `type`
   * `defaultValue`: default value at initialisation and after a `reset` of the field
   * `domainValue`: `Array` containing all values or key/value object. If present will override `type` and `pattern`
+  * `multiValue`: value will be an Array, individual values will be checked
   * `checkDomainValue`: boolean whether or not to check field's value within it's domain value
-  * `valueChecker`: Object, if present, will override `type`, `pattern` and `domainValue`. Default: false
+  * `valueChecker`: Object, if present, will override `type`, `pattern` and `domainValue`. 
     * `checker`: `function` that returns a `Promise` that should be resolved as `true` if value is correct
-    * `debounce`: will call `checker` only milliseconds after last value received
+    * `debounce`: will call `checker` only milliseconds after last value will be received
 
 All above schema's attributes are directly accessible from a field. If you add extra attributes, you can access them via `field.schema.<attribute>`.
 
@@ -252,11 +253,11 @@ price.onValue( state => {
 ```
 Will output 54: default values are overwritten by actual values.
 
-* `Formo#field(path)`: One fields are created as a `Formo` object, this method helps to get them. It uses a `path` and not just a name, because we are playing with a tree (see MultiField).
+* `Formo#field(path)`: One fields are created as a `Formo` object, this method helps to get them. It uses a `path` and not just a name, because we are playing with a tree (see GroupField).
 
 ```
 const formo = new Formo([
-  new MultiField('bill', [
+  new GroupField('bill', [
     new Field('price', {type: 'number'}),
     new Field('currency', {defaultValue: 'EUR',domainValue: ['EUR', 'USD', 'GBP'}
     }),
@@ -303,7 +304,7 @@ After a `submit` event it's very common to need the aquivalent of the `Formo` ob
 * `Formo#toDocument(state)`: convert a `Formo` object state to a javasctip object:
 
 ```
-const formo = new Formo([new MultiField('bike', [new Field('price')])]);
+const formo = new Formo([new GroupField('bike', [new Field('price')])]);
 const [bike, price] = [formo.field('bike'), formo.field('/bike/price')];
 
 formo.onSubmit( state => {
@@ -319,7 +320,7 @@ A `Formo` object is an observable. Returned `state` is an agregation of all chil
 
 
 ```
-const formo = new Formo([new MultiField('bike', [new Field('price')])]);
+const formo = new Formo([new GroupField('bike', [new Field('price')])]);
 const [bike, price] = [formo.field('bike'), formo.field('/bike/price')];
 
 formo.onValue(state => console.log(state.bike.price.value));
@@ -334,19 +335,19 @@ Will output: `142 142 142`
 Same as for a `Field` you can access Kefir property `Formo.state`.
 
 
-#### MultiField
+#### GroupField
 
 A `Multifield` is made of `Multifields` or `Fields` in a `Formo` tree. If you think world is not flat, use it!
 
-A `MultiField` has no value, but you can `reset`, `activate` them.
+A `GroupField` has no value, but you can `reset`, `activate` them.
 
-A `MultiField` is an observable, like a `Formo` object (see above).
+A `GroupField` is an observable, like a `Formo` object (see above).
 
-* `MultiField#onValue(fieldState)` gives you an agregation of children's states. 
+* `GroupField#onValue(fieldState)` gives you an agregation of children's states. 
 
 ```
 const formo = new Formo([
-  new MultiField('bike', [
+  new GroupField('bike', [
     new Field('price')
     ])
   ]);
