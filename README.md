@@ -95,14 +95,16 @@ All above schema's attributes are directly accessible from a field. If you add e
 A field exports 3 `Kefir` streams as inputs:
 
 * `newValueStream`: used to publish new values
+* `newValueschemaStream`: used to publish new schema's values
 * `resetStream`: used to reset field's state
-* `activateStream`: used to active/desactive a field
+* `disabledStream`: used to active/desactive a field
 
 We can call 3 asynchronous methods instead of using stream:
 
 * `Field#setValue(value)`: push a new value to the field
+* `Field#setSchemaValue(value)`: push a new schema's value to the state
 * `Field#reset(data)`: reset the field, data will be accessible as `resetOptions` in resulting `state`
-* `Field#activate(boolean)`: will set up `isActivate` attribute in the state
+* `Field#disabled(boolean)`: will set up `isActivate` attribute in the state
 
 A field has no value, it's a reactive structure, you need to observe it:
 
@@ -118,7 +120,7 @@ A field has no value, it's a reactive structure, you need to observe it:
 
  * `value`: field value, even if validation failed, a new state with this value will be published.
  * `error`: error string if `value` validation failed. Each time a field receive a value and at initialisation, field will check its value (see `schema` above)
- * `isActivated`: boolean 
+ * `disabled`: boolean 
  * `hasBeenModified`: boolean to reflect if field's value changed
  * `canSubmit`: boolean to indicate if value is checked and no processing is in progress
  * `isLoading`: counter of running requests to check values (see `valueChecker`)
@@ -270,7 +272,7 @@ const field = formo.field('/bill/currency');
 We can `submit`, `cancel`, `reset`, `activate` a `formo` object thanks to those methods and associated streams:
 
 * `Formo#reset()`: reset all fields, will call `Field#reset()` on all fields
-* `Formo#activate(boolean)`: will call `Field#activate(boolean) on all fields
+* `Formo#disabled(boolean)`: will call `Field#disabled(boolean) on all fields
 * `Formo#submit()` | `Formo#submitStream`: used to uncouple component who emits `submit` event from the one who will process it. Latter has to observe the stream `Formo#submitted` (see below)
 * `Formo#cancel()` | `Formo#cancelStream`: same idea as for `submit`
 
@@ -291,7 +293,7 @@ Will output : 42, 44, 42
 
 ```
 const formo = new Formo();
-formo.onSubmit( state => {
+formo.onSubmit( (state, document) => {
   console.log(state);
 });
 formo.submit();
@@ -299,16 +301,13 @@ formo.submit();
 
 Will output: `Map { "canSubmit": true, "hasBeenModified": false, "isLoading": false}`
 
-After a `submit` event it's very common to need the aquivalent of the `Formo` object as a plain old javascript object, `Formo#toDocument()` wil help:
-
-* `Formo#toDocument(state)`: convert a `Formo` object state to a javasctip object:
 
 ```
 const formo = new Formo([new GroupField('bike', [new Field('price')])]);
 const [bike, price] = [formo.field('bike'), formo.field('/bike/price')];
 
-formo.onSubmit( state => {
-  console.log(state);
+formo.onSubmit( (state, document) => {
+  console.log(document);
 });
 price.setValue(142)
 formo.submit();
@@ -337,9 +336,9 @@ Same as for a `Field` you can access Kefir property `Formo.state`.
 
 #### GroupField
 
-A `Multifield` is made of `Multifields` or `Fields` in a `Formo` tree. If you think world is not flat, use it!
+A `FieldGroup` is made of `Multifields` or `Fields` in a `Formo` tree. If you think world is not flat, use it!
 
-A `GroupField` has no value, but you can `reset`, `activate` them.
+A `GroupField` has no value, but you can `reset`, `disabled` them.
 
 A `GroupField` is an observable, like a `Formo` object (see above).
 
