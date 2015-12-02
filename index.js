@@ -1,5 +1,7 @@
 'use strict';
 
+var _get = function get(object, property, receiver) { if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { return get(parent, property, receiver); } } else if ("value" in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } };
+
 var _slicedToArray = (function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"]) _i["return"](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }; })();
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -7,7 +9,7 @@ var _createClass = (function () { function defineProperties(target, props) { for
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.Field = exports.FieldGroup = exports.Formo = undefined;
+exports.Field = exports.MultiField = exports.FieldGroup = exports.Formo = undefined;
 
 var _lodash = require('lodash');
 
@@ -34,8 +36,10 @@ var AbstractFieldGroup = (function () {
     _classCallCheck(this, AbstractFieldGroup);
 
     this.key = name;
-    this.fields = {};
-    this.initFields(fields);
+    if (fields) {
+      this.fields = {};
+      this.initFields(fields);
+    }
   }
 
   _createClass(AbstractFieldGroup, [{
@@ -72,6 +76,29 @@ var AbstractFieldGroup = (function () {
       }, this);
     }
   }, {
+    key: 'propagateParent',
+    value: function propagateParent(parent) {
+      function propagate(parent) {
+        if (!parent.fields) return;
+        _lodash2.default.each(parent.fields, function (field) {
+          field.parent = parent;
+          propagate(field);
+        });
+      }
+      propagate(parent);
+    }
+  }, {
+    key: 'setValue',
+    value: function setValue(key, value) {
+      var path = this.path;
+      var root = this.root;
+      var fieldPath = [path, key].join('/');
+      var field = root.field(fieldPath);
+      if (!field) throw new Error('Cannot find any field with path: "' + fieldPath + '"');
+      field.setValue(value);
+      return this;
+    }
+  }, {
     key: 'initFields',
     value: function initFields(fields) {
       var _iteratorNormalCompletion = true;
@@ -100,61 +127,54 @@ var AbstractFieldGroup = (function () {
       }
     }
   }, {
+    key: 'mergeChildrenState',
+    value: function mergeChildrenState(field, state) {
+      return function (parentState) {
+        var newParentState = parentState.set(field.key, state);
+        var subStates = newParentState.filter(function (subState) {
+          return _immutable2.default.Map.isMap(subState) && subState.has('canSubmit');
+        }).toList();
+        var canSubmit = _lodash2.default.all(subStates.map(function (x) {
+          return x.get('canSubmit');
+        }).toJS());
+        var isLoading = _lodash2.default.some(subStates.map(function (x) {
+          return x.get('isLoading');
+        }).toJS());
+        var hasBeenModified = _lodash2.default.some(subStates.map(function (x) {
+          return x.get('hasBeenModified');
+        }).toJS());
+        return newParentState.merge({
+          canSubmit: canSubmit,
+          hasBeenModified: hasBeenModified,
+          isLoading: isLoading
+        });
+      };
+    }
+  }, {
     key: 'combineStates',
     value: function combineStates() {
       var _this2 = this;
 
-      var commands = _kefir2.default.pool();
+      this.commands = _kefir2.default.pool();
       var fields = this.fields;
       var defaultState = _immutable2.default.Map({
         canSubmit: true,
         hasBeenModified: false,
-        isLoading: false
+        isLoading: false,
+        path: this.path
       });
-
-      var mergeChildrenState = function mergeChildrenState(field, state) {
-        return function (parentState) {
-          var newParentState = parentState.set(field.key, state);
-          var subStates = newParentState.filter(function (subState) {
-            return _immutable2.default.Map.isMap(subState) && subState.has('canSubmit');
-          }).toList();
-          var canSubmit = _lodash2.default.all(subStates.map(function (x) {
-            return x.get('canSubmit');
-          }).toJS());
-          var isLoading = _lodash2.default.some(subStates.map(function (x) {
-            return x.get('isLoading');
-          }).toJS());
-          var hasBeenModified = _lodash2.default.some(subStates.map(function (x) {
-            return x.get('hasBeenModified');
-          }).toJS());
-          return newParentState.merge({
-            canSubmit: canSubmit,
-            hasBeenModified: hasBeenModified,
-            isLoading: isLoading
-          });
-        };
-      };
 
       _lodash2.default.each(fields, function (field) {
-        commands.plug(field.state.map(function (state) {
-          return mergeChildrenState(field, state);
-        }));
+        var stream = field.state.map(function (state) {
+          return _this2.mergeChildrenState(field, state);
+        });
+        field.unplugFromCommandPool = function () {
+          return _this2.commands.unplug(stream);
+        };
+        _this2.commands.plug(stream);
       });
 
-      if (this.markStream) {
-        (function () {
-          var markCommand = function markCommand(value) {
-            return function (state) {
-              return state.set('mark', value);
-            };
-          };
-          commands.plug(_this2.markStream.map(function (v) {
-            return markCommand(v);
-          }));
-        })();
-      }
-
-      return commands.scan(function (state, command) {
+      return this.commands.scan(function (state, command) {
         return command(state);
       }, defaultState);
     }
@@ -162,7 +182,7 @@ var AbstractFieldGroup = (function () {
     key: 'initState',
     value: function initState() {
       _lodash2.default.each(this.fields, function (field) {
-        field.initState();
+        return field.initState();
       });
       this.state = this.combineStates();
     }
@@ -178,6 +198,44 @@ var AbstractFieldGroup = (function () {
       return function () {
         return _this3.state.offValue(fct);
       };
+    }
+  }, {
+    key: 'toDocument',
+    value: function toDocument(state) {
+      var res = {};
+      var _iteratorNormalCompletion2 = true;
+      var _didIteratorError2 = false;
+      var _iteratorError2 = undefined;
+
+      try {
+        for (var _iterator2 = state.entries()[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
+          var _step2$value = _slicedToArray(_step2.value, 2);
+
+          var name = _step2$value[0];
+          var subState = _step2$value[1];
+
+          if (_immutable2.default.Map.isMap(subState)) {
+            var path = subState.get('path');
+            var field = this.root.field(path);
+            if (subState.has('value')) res[name] = castedValue(subState, subState.get('value'));else res[name] = field.toDocument(subState);
+          }
+        }
+      } catch (err) {
+        _didIteratorError2 = true;
+        _iteratorError2 = err;
+      } finally {
+        try {
+          if (!_iteratorNormalCompletion2 && _iterator2.return) {
+            _iterator2.return();
+          }
+        } finally {
+          if (_didIteratorError2) {
+            throw _iteratorError2;
+          }
+        }
+      }
+
+      return res;
     }
   }, {
     key: 'path',
@@ -207,10 +265,9 @@ var Formo = exports.Formo = (function (_AbstractFieldGroup) {
 
     var _this4 = _possibleConstructorReturn(this, Object.getPrototypeOf(Formo).call(this, fields));
 
-    _this4.propagateParent();
+    _this4.propagateParent(_this4);
     _this4.document = document;
 
-    _this4.markStream = _kefir2.default.pool();
     _this4.initState();
 
     _this4.submitStream = _kefir2.default.pool();
@@ -226,18 +283,6 @@ var Formo = exports.Formo = (function (_AbstractFieldGroup) {
   }
 
   _createClass(Formo, [{
-    key: 'propagateParent',
-    value: function propagateParent() {
-      function propagate(parent) {
-        if (!parent.fields) return;
-        _lodash2.default.each(parent.fields, function (field) {
-          field.parent = parent;
-          propagate(field);
-        });
-      }
-      propagate(this);
-    }
-  }, {
     key: 'onSubmit',
     value: function onSubmit(cb) {
       var _this5 = this;
@@ -274,11 +319,6 @@ var Formo = exports.Formo = (function (_AbstractFieldGroup) {
       this.cancelStream.plug(_kefir2.default.constant(_immutable2.default.fromJS(options)));
     }
   }, {
-    key: 'mark',
-    value: function mark(value) {
-      this.markStream.plug(_kefir2.default.constant(value));
-    }
-  }, {
     key: 'getDocumentValue',
     value: function getDocumentValue(path) {
       if (!this.document) return;
@@ -287,42 +327,6 @@ var Formo = exports.Formo = (function (_AbstractFieldGroup) {
       }), function (d, p) {
         return d && d[p];
       }, this.document);
-    }
-  }, {
-    key: 'toDocument',
-    value: function toDocument(state) {
-      var res = {};
-      var _iteratorNormalCompletion2 = true;
-      var _didIteratorError2 = false;
-      var _iteratorError2 = undefined;
-
-      try {
-        for (var _iterator2 = state.entries()[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
-          var _step2$value = _slicedToArray(_step2.value, 2);
-
-          var name = _step2$value[0];
-          var subState = _step2$value[1];
-
-          if (_immutable2.default.Map.isMap(subState)) {
-            if (subState.has('value')) res[name] = castedValue(subState, subState.get('value'));else res[name] = this.toDocument(subState);
-          }
-        }
-      } catch (err) {
-        _didIteratorError2 = true;
-        _iteratorError2 = err;
-      } finally {
-        try {
-          if (!_iteratorNormalCompletion2 && _iterator2.return) {
-            _iterator2.return();
-          }
-        } finally {
-          if (_didIteratorError2) {
-            throw _iteratorError2;
-          }
-        }
-      }
-
-      return res;
     }
   }]);
 
@@ -338,7 +342,133 @@ var FieldGroup = exports.FieldGroup = (function (_AbstractFieldGroup2) {
     return _possibleConstructorReturn(this, Object.getPrototypeOf(FieldGroup).call(this, fields, name));
   }
 
+  _createClass(FieldGroup, [{
+    key: 'clone',
+    value: function clone() {
+      return new FieldGroup(this.key, _lodash2.default.map(this.fields, function (field) {
+        return field.clone();
+      }));
+    }
+  }]);
+
   return FieldGroup;
+})(AbstractFieldGroup);
+
+var MultiField = exports.MultiField = (function (_AbstractFieldGroup3) {
+  _inherits(MultiField, _AbstractFieldGroup3);
+
+  function MultiField(name) {
+    var fields = arguments.length <= 1 || arguments[1] === undefined ? [] : arguments[1];
+
+    _classCallCheck(this, MultiField);
+
+    var _this8 = _possibleConstructorReturn(this, Object.getPrototypeOf(MultiField).call(this, null, name));
+
+    _this8.keyCounter = 0;
+    _this8.schema = fields;
+    _this8.fields = {};
+    //this.fields =  _.object(_.times(count, () => [this.keyCounter , new FieldGroup(String(this.keyCounter++), _.map(fields, field => field.clone()))]));
+    return _this8;
+  }
+
+  _createClass(MultiField, [{
+    key: 'initState',
+    value: function initState() {
+      var _this9 = this;
+
+      _get(Object.getPrototypeOf(MultiField.prototype), 'initState', this).call(this);
+      this.removeFieldStream = _kefir2.default.pool();
+      var removeFieldCommand = function removeFieldCommand(key) {
+        return function (state) {
+          return state.delete(key);
+        };
+      };
+      this.commands.plug(this.removeFieldStream.map(function (key) {
+        return removeFieldCommand(key);
+      }));
+
+      var root = this.root;
+      var defaultValue = root && root.getDocumentValue(this.path);
+      if (defaultValue) {
+        var size = defaultValue.length;
+        _lodash2.default.times(size, function () {
+          return _this9.addField();
+        });
+      }
+    }
+  }, {
+    key: 'addField',
+    value: function addField() {
+      var _this10 = this;
+
+      var newKey = this.keyCounter++;
+      var newField = new FieldGroup(String(newKey), _lodash2.default.map(this.schema, function (field) {
+        return field.clone();
+      }));
+      newField.parent = this;
+      this.propagateParent(newField);
+      newField.initState();
+      this.fields[newKey] = newField;
+      var stream = newField.state.map(function (state) {
+        return _this10.mergeChildrenState(newField, state);
+      });
+      newField.unplugFromCommandPool = function () {
+        return _this10.commands.unplug(stream);
+      };
+      this.commands.plug(stream);
+      return newField;
+    }
+  }, {
+    key: 'deleteField',
+    value: function deleteField(field) {
+      if (!field) return this;
+      if (!this.fields[field.key]) throw new Error('Cannot find any field for: "' + field.path + '"');
+      this.removeFieldStream.plug(_kefir2.default.constant(field.key));
+      field.unplugFromCommandPool();
+      delete this.fields[field.key];
+      return this;
+    }
+  }, {
+    key: 'toDocument',
+    value: function toDocument(state) {
+      var res = [];
+      var _iteratorNormalCompletion3 = true;
+      var _didIteratorError3 = false;
+      var _iteratorError3 = undefined;
+
+      try {
+        for (var _iterator3 = state.entries()[Symbol.iterator](), _step3; !(_iteratorNormalCompletion3 = (_step3 = _iterator3.next()).done); _iteratorNormalCompletion3 = true) {
+          var _step3$value = _slicedToArray(_step3.value, 2);
+
+          var name = _step3$value[0];
+          var subState = _step3$value[1];
+
+          if (_immutable2.default.Map.isMap(subState)) {
+            var path = subState.get('path');
+            var field = this.root.field(path);
+            if (subState.has('value')) res.push(castedValue(subState, subState.get('value')));else res.push(field.toDocument(subState));
+          }
+        }
+      } catch (err) {
+        _didIteratorError3 = true;
+        _iteratorError3 = err;
+      } finally {
+        try {
+          if (!_iteratorNormalCompletion3 && _iterator3.return) {
+            _iterator3.return();
+          }
+        } finally {
+          if (_didIteratorError3) {
+            throw _iteratorError3;
+          }
+        }
+      }
+
+      return res;
+    }
+  }]);
+
+  return MultiField;
 })(AbstractFieldGroup);
 
 var Field = exports.Field = (function () {
@@ -352,9 +482,14 @@ var Field = exports.Field = (function () {
   }
 
   _createClass(Field, [{
+    key: 'clone',
+    value: function clone() {
+      return new Field(this.key, this.schema);
+    }
+  }, {
     key: 'initState',
     value: function initState() {
-      var _this8 = this;
+      var _this11 = this;
 
       var defaultValue = this.defaultValue;
 
@@ -391,14 +526,14 @@ var Field = exports.Field = (function () {
             return state.merge({
               isLoading: isLoading,
               canSubmit: !(isLoading || data.error),
-              hasBeenModified: _this8.hasBeenModified(state, state.get('value'))
+              hasBeenModified: _this11.hasBeenModified(state, state.get('value'))
             });
           }
           return state.merge({
             error: data.error,
             isLoading: isLoading,
             canSubmit: !(isLoading || data.error),
-            hasBeenModified: _this8.hasBeenModified(state, state.get('value'))
+            hasBeenModified: _this11.hasBeenModified(state, state.get('value'))
           });
         };
       };
@@ -418,26 +553,26 @@ var Field = exports.Field = (function () {
 
       var newValueCommand = function newValueCommand(value) {
         return function (state) {
-          if (_this8.schema.valueChecker && !(isNull(value) && isRequired(state))) {
+          if (_this11.schema.valueChecker && !(isNull(value) && isRequired(state))) {
             return state.merge({
               value: value,
               canSubmit: false,
               error: undefined,
-              hasBeenModified: _this8.hasBeenModified(state, value)
+              hasBeenModified: _this11.hasBeenModified(state, value)
             });
           }
           if (!checkValue(state, value)) {
             return state.merge({
               value: value,
               error: getError(state, value),
-              hasBeenModified: _this8.hasBeenModified(state, value),
+              hasBeenModified: _this11.hasBeenModified(state, value),
               canSubmit: false
             });
           }
           return state.merge({
             value: value,
             error: undefined,
-            hasBeenModified: _this8.hasBeenModified(state, value),
+            hasBeenModified: _this11.hasBeenModified(state, value),
             canSubmit: !state.get('isLoading')
           });
         };
@@ -498,7 +633,7 @@ var Field = exports.Field = (function () {
           var value = _ref5[1];
 
           commands.plug(_kefir2.default.constant(isLoadingCommand()));
-          var ajaxRequest = _kefir2.default.fromPromise(_this8.schema.valueChecker.checker(value, _this8.root.document, state));
+          var ajaxRequest = _kefir2.default.fromPromise(_this11.schema.valueChecker.checker(value, _this11.root.document, state));
           return _kefir2.default.constant(value).combine(ajaxRequest, function (value, res) {
             if (!res.checked) return { error: res.error || 'Wrong Input!', value: value };
             return { value: value, error: undefined };
@@ -516,14 +651,14 @@ var Field = exports.Field = (function () {
   }, {
     key: 'onValue',
     value: function onValue(cb) {
-      var _this9 = this;
+      var _this12 = this;
 
       var fct = undefined;
       this.state.onValue(fct = function (state) {
         return cb(state.toJS());
       });
       return function () {
-        return _this9.state.offValue(fct);
+        return _this12.state.offValue(fct);
       };
     }
   }, {
@@ -581,7 +716,8 @@ var Field = exports.Field = (function () {
   }, {
     key: 'defaultValue',
     get: function get() {
-      return this.root && this.root.getDocumentValue(this.path) || this.schema.defaultValue;
+      var root = this.root;
+      return root && root.getDocumentValue(this.path) || this.schema.defaultValue;
     }
   }, {
     key: 'label',
@@ -596,6 +732,7 @@ var Field = exports.Field = (function () {
   }, {
     key: 'path',
     get: function get() {
+      //if(!this.parent)console.log(this)
       return this.parent.path + '/' + this.key;
     }
   }, {

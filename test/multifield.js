@@ -1,91 +1,132 @@
-import {Field, Formo} from '../';
+import {MultiField, FieldGroup, Field, Formo} from '../';
 import should from 'should';
 import _ from 'lodash';
 
-describe('multifields', function(){
+describe('MultiField', function(){
+  const formo = () => {
+    const f =  new Formo([
+      new Field('name',{
+        type: 'text',
+        defaultValue: 'toto'
+      }),
+      new MultiField('phones', [
+        new Field('number',{
+          label: 'Number',
+          type: 'integer',
+          //defaultValue: '3333'
+          //pattern: /^\+(?:[0-9] ?){6,14}[0-9]$/
+        }),
+        new Field('label',{
+          label: 'Label',
+          type: 'text',
+        }),
+      ])
+    ]);
+    const phones = f.field('/phones');
+    phones.addField();
+    phones.addField();
+    return f;
+  }
 
-    it('should not match a pattern', (done) => {
-      const formo = new Formo([new Field('price', { multiValue: true, pattern: /[1,2,3]/, defaultValue:['abc'] })]);
-      const field = formo.field('price');
-      field.state.onValue( s => {
-        const res = s.toJS();
-        should(res.error).be.a.String();
-        done();
-      });
+  const formo1 = () => {
+    return new Formo([
+      new Field('name',{
+        type: 'text',
+        defaultValue: 'toto'
+      }),
+      new MultiField('phones', [
+        new Field('number',{
+          label: 'Number',
+          type: 'integer',
+          //pattern: /^\+(?:[0-9] ?){6,14}[0-9]$/
+        }),
+        new Field('label',{
+          label: 'Label',
+          type: 'text',
+        }),
+      ])
+    ], {
+      name: 'titi',
+      phones:[
+        {label: 'home', number: 1},
+        {label: 'work', number: 2},
+      ]
     });
+  }
 
-    it('should match a pattern', (done) => {
-      const formo = new Formo([new Field('price', { multiValue: true, pattern: /[1,2,3]/ })]);
-      const field = formo.field('price');
-      field.state.skip(1).onValue( s => {
-        const res = s.toJS();
-        should(res.error).be.undefined();
-        done();
-      });
-      field.setValue([1, 2, 2]);
-    });
 
-    it('should not match a domain value', (done) => {
-      const formo = new Formo([new Field('price', { multiValue: true, domainValue: [1,2,3], defaultValue:[1, 2, 1, 4] })]);
-      const field = formo.field('price');
-      field.state.onValue( s => {
-        const res = s.toJS();
-        should(res.error).be.a.String();
-        done();
-      });
-    });
-
-    it('should match a domain value', (done) => {
-      const formo = new Formo([new Field('price', { multiValue: true, domainValue: [1,2,3]})]);
-      const field = formo.field('price');
-      field.state.skip(1).onValue( s => {
-        const res = s.toJS();
-        should(res.error).be.undefined();
-        done();
-      });
-      field.setValue([1, 2, 2]);
-    });
-
-    it('should get right plain JS object', (done) => {
-      const formo = new Formo([new Field('price', { multiValue: true, domainValue: [1,2,3]})]);
-      const price = formo.field('price');
-      formo.onSubmit( (state, doc) => {
-        should(doc.price).eql([1,1,1,1]);
-        done();
-      });
-      price.setValue([1,1,1,1]);
-      formo.submit();
-    });
- 
-});
-
-describe('dynamic domain value', () => {
-  it('should not match domain value', (done) => {
-    const formo = new Formo([new Field('price', {multiValue: true})]);
-    const field = formo.field('price');
-    field.state.skip(2).onValue( s => {
+  it('should get and set first field', (done) => {
+    const number1 = formo().field('/phones/0/number');
+    number1.state.skip(1).onValue( s => {
       const res = s.toJS();
-      should(res.value).eql([4, 2]);
-      should(res.error).be.a.String();
+      should(res.value).equal(42);
       done();
     });
-    field.setSchemaValue('domainValue',  [4]);
-    field.setValue([4, 2]);
+    number1.setValue(42);
   });
 
-  it('should match domain value', (done) => {
-    const formo = new Formo([new Field('price', {multiValue: true})]);
-    const field = formo.field('price');
-    field.state.skip(2).onValue( s => {
-      const res = s.toJS();
-      should(res.error).be.undefined();
-      should(res.value).eql([42, 42]);
+  it('should be able to add a field', (done) => {
+    const phones = formo().field('/phones');
+    const phone3 = phones.addField();
+    phone3.state.skip(2).onValue( s => {
+      const res = phone3.toDocument(s);
+      should(res.number).equal(44);
       done();
     });
-    field.setSchemaValue('domainValue',  [42]);
-    field.setValue([42, 42]);
+    phone3.setValue('number', 44).setValue('label', 'Home')
   });
 
+  it('should be able to delete a field', (done) => {
+    const form = formo();
+    const phones = form.field('/phones');
+    const phone3 = phones.addField();
+    phones.deleteField(phone3);
+    form.onSubmit( (s, doc) => {
+      should(doc.phones.length).equal(2);
+      done();
+    });
+    form.submit();
+  });
+  
+  it('should be able to delete an existing field', (done) => {
+    const form = formo();
+    const phones = form.field('/phones');
+    const phone1 = formo().field('/phones/0');
+
+    // must call onValue to activate streams!!!!
+    form.onValue(() => {
+    });
+    phones.deleteField(phone1);
+    form.onSubmit( (s, doc) => {
+      should(doc.phones.length).equal(1);
+      done();
+    });
+    form.submit();
+  });
+
+  it('should load document values', (done) => {
+    const form = formo1();
+    form.onSubmit( (s, doc) => {
+      should(doc.phones[1].number).equal(2);
+      done();
+    });
+    form.submit();
+  });
+
+  it('should be able to reset values', (done) => {
+    const form = formo1();
+    const phone = form.field('/phones/1');
+    phone.setValue('number', '8888');
+    form.onSubmit( (s, doc) => {
+      should(doc.phones[1].number).equal(2);
+      done();
+    });
+    form.reset();
+    form.submit();
+  });
+
+
 });
+
 
 

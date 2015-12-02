@@ -5,8 +5,10 @@ import Immutable from 'immutable';
 class AbstractFieldGroup{
   constructor(fields, name){
     this.key = name;
-    this.fields = {};
-    this.initFields(fields);
+    if(fields){
+      this.fields = {};
+      this.initFields(fields);
+    }
   }
 
   reset(){
@@ -29,6 +31,27 @@ class AbstractFieldGroup{
     return _.inject(path.split('/').filter(x => x != ''), function(o, p){return o && o.fields[p]}, this);
   }
 
+  propagateParent(parent){
+    function propagate(parent){
+      if(!parent.fields)return;
+      _.each(parent.fields, field =>{
+        field.parent = parent;
+        propagate(field);
+      })
+    }
+    propagate(parent);
+  }
+
+  setValue(key, value){
+    const path = this.path;
+    const root = this.root;
+    const fieldPath = [path, key].join('/');
+    const field = root.field(fieldPath);
+    if(!field) throw new Error(`Cannot find any field with path: "${fieldPath}"`);
+    field.setValue(value);
+    return this;
+  }
+
   get path(){
     if(!this.parent) return '';
     return `${this.parent.path}/${this.key}`;
@@ -45,50 +68,42 @@ class AbstractFieldGroup{
     }
   }
 
+  mergeChildrenState(field, state){
+    return (parentState) => {
+      const newParentState = parentState.set(field.key, state);
+      const subStates = newParentState.filter( subState =>  Immutable.Map.isMap(subState) && subState.has('canSubmit')).toList();
+      const canSubmit = _.all(subStates.map( x => x.get('canSubmit') ).toJS());
+      const isLoading = _.some(subStates.map( x => x.get('isLoading')).toJS());
+      const hasBeenModified = _.some(subStates.map( x => x.get('hasBeenModified')).toJS());
+      return newParentState.merge({ 
+        canSubmit: canSubmit, 
+        hasBeenModified: hasBeenModified,
+        isLoading: isLoading 
+      });
+    }
+  }
+
   combineStates(){
-    const commands = Kefir.pool();
+    this.commands = Kefir.pool();
     const fields = this.fields;
     const defaultState = Immutable.Map({
       canSubmit: true,
       hasBeenModified: false,
       isLoading: false,
+      path: this.path
     });
-
-    const mergeChildrenState = (field, state) => {
-      return (parentState) => {
-        const newParentState = parentState.set(field.key, state);
-        const subStates = newParentState.filter( subState =>  Immutable.Map.isMap(subState) && subState.has('canSubmit')).toList();
-        const canSubmit = _.all(subStates.map( x => x.get('canSubmit') ).toJS());
-        const isLoading = _.some(subStates.map( x => x.get('isLoading')).toJS());
-        const hasBeenModified = _.some(subStates.map( x => x.get('hasBeenModified')).toJS());
-        return newParentState.merge({ 
-          canSubmit: canSubmit, 
-          hasBeenModified: hasBeenModified,
-          isLoading: isLoading 
-        });
-      }
-    }
 
     _.each(fields, field => {
-      commands.plug(field.state.map( state => mergeChildrenState(field, state)));
+      const stream = field.state.map( state => this.mergeChildrenState(field, state));
+      field.unplugFromCommandPool = () => this.commands.unplug(stream); 
+      this.commands.plug(stream);
     });
 
-    if(this.markStream){
-      const markCommand = (value) => {
-        return (state) => {
-          return state.set('mark', value);
-        }
-      }
-      commands.plug(this.markStream.map(v => markCommand(v)));
-    }
-
-    return commands.scan( (state, command) => command(state), defaultState);
+    return this.commands.scan( (state, command) => command(state), defaultState);
   }
 
   initState(){
-    _.each(this.fields, field =>{
-      field.initState();
-    })
+    _.each(this.fields, field => field.initState() )
     this.state = this.combineStates();
   }
 
@@ -98,15 +113,26 @@ class AbstractFieldGroup{
     return () => this.state.offValue(fct);
   }
 
+  toDocument(state){
+    let res = {};
+    for(let [name, subState] of state.entries()){
+      if(Immutable.Map.isMap(subState)){
+        const path = subState.get('path');
+        const field = this.root.field(path);
+        if(subState.has('value')) res[name] = castedValue(subState, subState.get('value'));
+        else res[name] = field.toDocument(subState);
+      }
+    } 
+   return res;
+  }
 }
 
 export class Formo extends AbstractFieldGroup{
   constructor(fields=[], document){
     super(fields);
-    this.propagateParent();
+    this.propagateParent(this);
     this.document = document;
 
-    this.markStream = Kefir.pool();
     this.initState();
     
     this.submitStream = Kefir.pool();
@@ -118,17 +144,6 @@ export class Formo extends AbstractFieldGroup{
     this.cancelled = this.state.sampledBy(this.cancelStream, (state, options) => {
       return state.set('cancelOptions', options);
     });
-  }
-
-  propagateParent(){
-    function propagate(parent){
-      if(!parent.fields)return;
-      _.each(parent.fields, field =>{
-        field.parent = parent;
-        propagate(field);
-      })
-    }
-    propagate(this);
   }
 
   onSubmit(cb){
@@ -151,24 +166,16 @@ export class Formo extends AbstractFieldGroup{
     this.cancelStream.plug(Kefir.constant(Immutable.fromJS(options)));
   }
 
-  mark(value){
-    this.markStream.plug(Kefir.constant(value));
-  }
 
   getDocumentValue(path){
     if(!this.document) return;
-    return _.inject(path.split('/').filter(x => x !== ''), function(d, p){return d && d[p]}, this.document);
-  }
-
-   toDocument(state){
-    let res = {};
-    for(let [name, subState] of state.entries()){
-      if(Immutable.Map.isMap(subState)){
-        if(subState.has('value')) res[name] = castedValue(subState, subState.get('value'));
-        else res[name] = this.toDocument(subState);
-      }
-    } 
-   return res;
+    return _.inject(
+      path.split('/').filter(x => x !== ''), 
+      (d, p) => {
+        return d && d[p]
+      }, 
+      this.document
+    );
   }
 
 }
@@ -177,12 +184,80 @@ export class FieldGroup extends AbstractFieldGroup{
   constructor(name, fields){
     super(fields, name);
   }
+
+  clone(){
+    return new FieldGroup(this.key, _.map(this.fields, field => field.clone()));
+  }
+}
+
+export class MultiField extends AbstractFieldGroup{
+  constructor(name, fields=[]){
+    super(null, name);
+    this.keyCounter = 0;
+    this.schema = fields;
+    this.fields = {};
+    //this.fields =  _.object(_.times(count, () => [this.keyCounter , new FieldGroup(String(this.keyCounter++), _.map(fields, field => field.clone()))]));
+  }
+
+  initState(){
+    super.initState();
+    this.removeFieldStream = Kefir.pool();
+    const removeFieldCommand = (key) => state => state.delete(key); 
+    this.commands.plug(this.removeFieldStream.map( key => removeFieldCommand(key)));
+
+    const root = this.root;
+    const defaultValue =  root && root.getDocumentValue(this.path);
+    if(defaultValue){
+      const size = defaultValue.length;
+      _.times(size, () => this.addField());
+    }
+  }
+
+  addField(){
+    const newKey = this.keyCounter++;
+    const newField = new FieldGroup(String(newKey), _.map(this.schema, field => field.clone()));
+    newField.parent =  this;
+    this.propagateParent(newField);
+    newField.initState();
+    this.fields[newKey] = newField;
+    const stream = newField.state.map(state => this.mergeChildrenState(newField, state));
+    newField.unplugFromCommandPool = () => this.commands.unplug(stream); 
+    this.commands.plug(stream);
+    return newField;
+  }
+
+  deleteField(field){
+    if(!field) return this;
+    if(!this.fields[field.key]) throw new Error(`Cannot find any field for: "${field.path}"`);
+    this.removeFieldStream.plug(Kefir.constant(field.key));
+    field.unplugFromCommandPool();
+    delete this.fields[field.key];
+    return this;
+  }
+
+  toDocument(state){
+    let res = [];
+    for(let [name, subState] of state.entries()){
+      if(Immutable.Map.isMap(subState)){
+        const path = subState.get('path');
+        const field = this.root.field(path);
+        if(subState.has('value')) res.push(castedValue(subState, subState.get('value')));
+        else res.push(field.toDocument(subState));
+      }
+    } 
+   return res;
+  }
+
 }
 
 export class Field{
   constructor(name, schema={}){
     this.schema = schema;
     this.key = name;
+  }
+
+  clone(){
+    return new Field(this.key, this.schema);
   }
 
   initState(){
@@ -321,7 +396,8 @@ export class Field{
   }
 
   get defaultValue(){
-    return this.root && this.root.getDocumentValue(this.path) || this.schema.defaultValue;
+    const root = this.root;
+    return root && root.getDocumentValue(this.path) || this.schema.defaultValue;
   }
 
   hasBeenModified(state, value){
@@ -337,6 +413,7 @@ export class Field{
   }
 
   get path(){
+    //if(!this.parent)console.log(this)
     return `${this.parent.path}/${this.key}`;
   }
 
