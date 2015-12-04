@@ -18,6 +18,7 @@ While working on a reactive app, I had to craft html forms. Finding a library ab
 * it uses schema validation (type, pattern, domain value, required field) but keep validation and schema management isolated from rendering
 * it provides multi-levels schema definition and html form elements bindings at any level of the schema
 * it can submit field's values to remote validations
+* schema can be dynamically updated 
 
 ### How to install formo
 
@@ -26,7 +27,7 @@ As usual: `$ npm install formo`
 ### How to use it
 
 A `Formo` object is mainly a reactive data structure, made of `Fields` associated with their own schema.  
-We can push events and values to fields observe them.
+We can push events and values to fields and observe them.
 
 **Let's define our first schema:**
 ```
@@ -68,7 +69,7 @@ price.newValueStream.plug(Kefir.sequentially(10, [42, 42.5, 43]));
 > Will output: `40 42 42.5 43`
 
 So far, nothing very usefyl... yet.
-Read the API to really see the awesomeness of form!
+Read the API to really see the awesomeness of formo!
 
 ### API
 
@@ -269,14 +270,14 @@ const formo = new Formo([
 const field = formo.field('/bill/currency');
 ```
 
-We can `submit`, `cancel`, `reset`, `activate` a `formo` object thanks to those methods and associated streams:
+We can `submit`, `cancel`, `reset`, `disabled` a `formo` object thanks to those methods and associated streams:
 
 * `Formo#reset()`: reset all fields, will call `Field#reset()` on all fields
 * `Formo#disabled(boolean)`: will call `Field#disabled(boolean) on all fields
 * `Formo#submit()` | `Formo#submitStream`: used to uncouple component who emits `submit` event from the one who will process it. Latter has to observe the stream `Formo#submitted` (see below)
 * `Formo#cancel()` | `Formo#cancelStream`: same idea as for `submit`
 
-`reset()` and `activate()` will update field's states, so that `Formo#onValue(state)` will be called for each of them:
+`reset()` and `disabled()` will update field's states, so that `Formo#onValue(state)` will be called for each of them:
 
 ```
 const formo = new Formo([new Field('price', {defaultValue: 42})});
@@ -375,5 +376,68 @@ Will output:
      hasBeenModified: true } }
 ```
 
+#### MultiField
+
+A field's value may be an Array, if you set `multiValue` to true. It let you manage arrays of basic types like `string`, `integer`. You have to answer about skills in a form, it's a perfect solution; But what about a repetive structured field like `phones` as `{label, number}`.
+
+
+Solution is to use `MultiField`, like this:
+
+```
+new MultiField('phones', [
+  new Field('number',{
+    label: 'Number',
+    pattern: /^\+(?:[0-9] ?){6,14}[0-9]$/
+  }),
+  new Field('label',{
+    label: 'Label',
+    type: 'text',
+  })
+])
+```
+
+A `MultiField` is an Array of `Field`, at creattion time Array is empty, we cann add and delete fields. If formo is initialized with an existing JS object, corresponding `MultiField` will be filled with their values.
+
+* `MultiField#addField() : Field`: add a new field
+* `MultiField#deleteField(field) : MultiField`: delete the field
+
+
+#### Setup Field's values with a path
+
+
+We saw how to set values of a `Field`, we can do the same at a higher level of the reactive tree. All fields are identify by a path (eg: '/bill/price').
+
+
+```
+const bill = formo.field('/bill');
+bill.setValue("price', 6767.33);
+```
+
+And for a `MultiField`:
+
+```
+    const formo =  new Formo([
+      new Field('name',{
+        type: 'text',
+        defaultValue: 'toto'
+      }),
+      new MultiField('phones', [
+        new Field('number',{
+          label: 'Number',
+          pattern: /^\+(?:[0-9] ?){6,14}[0-9]$/
+        }),
+        new Field('label',{
+          label: 'Label',
+          type: 'text',
+        }),
+      ])
+    ]);
+    
+    const phones = formo.field('/phones');
+    const phone1 = phones.addField()
+    phone1.setValue("label", "home").setValue("number", "+6 5675 88778");
+    // or
+    formo.setValue("/phones/0/label", "home").setValue("/phones/0/number", "+6 5675 88778");
+```
 
 That's all folks ....
