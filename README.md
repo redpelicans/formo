@@ -85,7 +85,7 @@ A field is defined by a `schema` and a `name`: `new Field(name, schema)`
   * `defaultValue`: default value at initialisation and after a `reset` of the field
   * `domainValue`: `Array` containing all values or key/value object. If present will override `type` and `pattern`
   * `multiValue`: value will be an Array, individual values will be checked
-  * `checkDomainValue`: boolean whether or not to check field's value within it's domain value
+  * `checkDomainValue`: boolean whether or not to check field's value within it's domain value, default `true`
   * `valueChecker`: Object, if present, will override `type`, `pattern` and `domainValue`. 
     * `checker`: `function` that takes a value and current document if exists and returns a `Promise` that should be resolved as `true` if value is correct
     * `debounce`: will call `checker` only milliseconds after last value received
@@ -125,6 +125,15 @@ A field has no value, it's a reactive structure, you need to observe it:
  * `hasBeenModified`: boolean to reflect if field's value changed
  * `canSubmit`: boolean to indicate if value is checked and no processing is in progress
  * `isLoading`: counter of running requests to check values (see `valueChecker`)
+ * `path`: field's key
+ * `type`: initialized by schema.type
+ * `required`: init by schema.required
+ * `pattern`: schema.pattern
+ * `domainValue`: schema.domainValue
+ * `checkDomainValue`: schema.checkDomainValue
+ 
+All 5 last attributes can be changed dynamically with `Field#setSchemaValue`. 
+
 
 * `Field.state` is a Kefir property, you can call `onValue` and get the internal immutable state.
 
