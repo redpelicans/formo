@@ -491,7 +491,7 @@ var Field = exports.Field = (function () {
     value: function initState() {
       var _this11 = this;
 
-      var defaultValue = this.defaultValue;
+      var defaultValue = _immutable2.default.fromJS(this.defaultValue);
 
       var defaultState = _immutable2.default.fromJS({
         value: defaultValue,
@@ -502,7 +502,7 @@ var Field = exports.Field = (function () {
         type: this.schema.type,
         required: !!this.schema.required,
         pattern: this.schema.pattern,
-        domainValue: this.schema.domainValue,
+        domainValue: getDomainValue(this.schema.domainValue),
         multiValue: !!this.schema.multiValue,
         checkDomainValue: this.checkDomainValue
       });
@@ -543,10 +543,27 @@ var Field = exports.Field = (function () {
         var value = _ref.value;
 
         return function (state) {
-          var data = state.set(key, _immutable2.default.fromJS(value));
+          var newValue = undefined;
+          switch (key) {
+            case 'domainValue':
+              newValue = getDomainValue(value);
+              break;
+            case 'type':
+            case 'required':
+            case 'pattern':
+            case 'checkDomainValue':
+            case 'multiValue':
+              newValue = value;
+              break;
+            default:
+              return state;
+          }
+          var data = state.set(key, _immutable2.default.fromJS(newValue));
+          var error = checkError(data, data.get('value'));
+
           return data.merge({
-            error: getError(data, data.get('value')),
-            canSubmit: !(data.get('isLoading') || getError(data, data.get('value')))
+            error: error,
+            canSubmit: !(data.get('isLoading') || error)
           });
         };
       };
@@ -732,7 +749,6 @@ var Field = exports.Field = (function () {
   }, {
     key: 'path',
     get: function get() {
-      //if(!this.parent)console.log(this)
       return this.parent.path + '/' + this.key;
     }
   }, {
@@ -784,10 +800,8 @@ function checkValue(state, value) {
   }
 }
 
-function getDomainValue(state) {
-  if (!hasDomainValue(state)) return;
-
-  var domainValue = state.get('domainValue').toJS();
+function getDomainValue(domainValue) {
+  if (!domainValue) return;
   var first = domainValue[0];
   return _lodash2.default.isObject(first) && 'key' in first ? domainValue : _lodash2.default.map(domainValue, function (v) {
     return { key: v, value: v };
@@ -795,7 +809,7 @@ function getDomainValue(state) {
 }
 
 function checkDomain(state, value) {
-  return _lodash2.default.contains(_lodash2.default.map(getDomainValue(state), function (_ref6) {
+  return _lodash2.default.contains(_lodash2.default.map(state.get('domainValue').toJS(), function (_ref6) {
     var key = _ref6.key;
     var value = _ref6.value;
     return key;
@@ -823,7 +837,7 @@ function isNull(value) {
 }
 
 function castedValue(state, value) {
-  if (isMultiValued(state)) return value.toJS ? value.toJS() : [];
+  if (isMultiValued(state)) return value && value.toJS ? value.toJS() : [];
   switch (state.get('type')) {
     case 'number':
     case 'integer':

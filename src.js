@@ -261,7 +261,7 @@ export class Field{
   }
 
   initState(){
-    const defaultValue = this.defaultValue;
+    const defaultValue = Immutable.fromJS(this.defaultValue);
 
     let defaultState = Immutable.fromJS({
         value: defaultValue
@@ -272,7 +272,7 @@ export class Field{
       , type: this.schema.type
       , required: !!this.schema.required
       , pattern: this.schema.pattern
-      , domainValue: this.schema.domainValue
+      , domainValue: getDomainValue(this.schema.domainValue)
       , multiValue: !!this.schema.multiValue
       , checkDomainValue: this.checkDomainValue
     });
@@ -310,10 +310,27 @@ export class Field{
 
     const newSchemaValueCommand = ({key, value}) => {
       return (state) => {
-        const data = state.set(key, Immutable.fromJS(value));
+        let newValue;
+        switch(key){
+          case 'domainValue':
+            newValue = getDomainValue(value);
+            break;
+          case 'type':
+          case 'required':
+          case 'pattern':
+          case 'checkDomainValue':
+          case 'multiValue':
+            newValue = value;
+            break;
+          default:
+            return state;
+        }
+        const data = state.set(key, Immutable.fromJS(newValue));
+        const error =  checkError(data, data.get('value'));
+
         return data.merge({
-          error: getError(data, data.get('value')),
-          canSubmit: !(data.get('isLoading') || getError(data, data.get('value'))),
+          error: error,
+          canSubmit: !(data.get('isLoading') || error),
         })
       }
     }
@@ -413,7 +430,6 @@ export class Field{
   }
 
   get path(){
-    //if(!this.parent)console.log(this)
     return `${this.parent.path}/${this.key}`;
   }
 
@@ -490,16 +506,14 @@ function checkValue(state, value){
   }
 }
 
-function getDomainValue(state){
-  if(!hasDomainValue(state)) return;
-
-  const domainValue = state.get('domainValue').toJS();
+function getDomainValue(domainValue){
+  if(!domainValue) return;
   const first = domainValue[0];
   return _.isObject(first) && 'key' in first ? domainValue : _.map(domainValue, v => { return {key: v, value: v} });
 }
 
 function checkDomain(state, value){
-  return _.contains(_.map(getDomainValue(state), ({key, value}) => key), value);
+  return _.contains(_.map(state.get('domainValue').toJS(), ({key, value}) => key), value);
 }
 
 function hasDomainValue(state){
@@ -523,7 +537,7 @@ function isNull(value){
 }
 
 function castedValue(state, value){
-  if(isMultiValued(state)) return value.toJS ? value.toJS() : [];
+  if(isMultiValued(state)) return value && value.toJS ? value.toJS() : [];
   switch(state.get('type')){
     case 'number':
     case 'integer':
