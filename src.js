@@ -199,10 +199,14 @@ export class MultiField extends AbstractFieldGroup{
     //this.fields =  _.object(_.times(count, () => [this.keyCounter , new FieldGroup(String(this.keyCounter++), _.map(fields, field => field.clone()))]));
   }
 
+  get length(){
+    return _.keys(this.fields).length;
+  }
+
   initState(){
     super.initState();
     this.removeFieldStream = Kefir.pool();
-    const removeFieldCommand = (key) => state => state.delete(key); 
+    const removeFieldCommand = (key) => state =>  state.delete(key).set('hasBeenModified', true);
     this.commands.plug(this.removeFieldStream.map( key => removeFieldCommand(key)));
 
     const root = this.root;
@@ -211,6 +215,10 @@ export class MultiField extends AbstractFieldGroup{
       const size = defaultValue.length;
       _.times(size, () => this.addField());
     }
+  }
+
+  getFields(){
+    return _.values(this.fields);
   }
 
   addField(){

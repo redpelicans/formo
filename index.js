@@ -380,7 +380,7 @@ var MultiField = exports.MultiField = (function (_AbstractFieldGroup3) {
       this.removeFieldStream = _kefir2.default.pool();
       var removeFieldCommand = function removeFieldCommand(key) {
         return function (state) {
-          return state.delete(key);
+          return state.delete(key).set('hasBeenModified', true);
         };
       };
       this.commands.plug(this.removeFieldStream.map(function (key) {
@@ -395,6 +395,11 @@ var MultiField = exports.MultiField = (function (_AbstractFieldGroup3) {
           return _this9.addField();
         });
       }
+    }
+  }, {
+    key: 'getFields',
+    value: function getFields() {
+      return _lodash2.default.values(this.fields);
     }
   }, {
     key: 'addField',
@@ -465,6 +470,11 @@ var MultiField = exports.MultiField = (function (_AbstractFieldGroup3) {
       }
 
       return res;
+    }
+  }, {
+    key: 'length',
+    get: function get() {
+      return _lodash2.default.keys(this.fields).length;
     }
   }]);
 
